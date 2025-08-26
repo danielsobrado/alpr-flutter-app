@@ -1,10 +1,10 @@
 # ALPR Flutter App
 
-A modern Flutter Android application for automatic license plate recognition (ALPR) with secure cloud-based note management. Built with OpenALPR for accurate plate detection and Firebase for seamless authentication and data sync.
+A Flutter Android application for automatic license plate recognition (ALPR) with secure cloud-based note management. Built with OpenALPR for plate detection and Firebase for authentication and data sync.
 
-## ✨ Features
+## Features
 
-### **🔍 License Plate Recognition**
+### **License Plate Recognition**
 - **Real-time Detection**: Live camera preview with instant plate recognition
 - **High Accuracy**: Powered by OpenALPR industry-standard computer vision
 - **Confidence Scoring**: Each detection includes accuracy percentage
@@ -12,7 +12,7 @@ A modern Flutter Android application for automatic license plate recognition (AL
 - **Visual Feedback**: Real-time overlay showing detected plate boundaries
 - **Region Detection**: Automatically identifies plate format and origin
 
-### **📝 Smart Note Management**
+### **Note Management**
 - **Cloud Sync**: Notes automatically backed up to Firebase Cloud Firestore
 - **Contextual Notes**: Add detailed observations for each detected plate
 - **Location Tracking**: Optional location tagging for notes
@@ -20,14 +20,14 @@ A modern Flutter Android application for automatic license plate recognition (AL
 - **Search & Filter**: Easy access to all your plate observations
 - **Offline Support**: Works offline with automatic sync when connected
 
-### **🔐 Secure Authentication**
+### **Secure Authentication**
 - **Google Sign-In**: One-tap authentication with Google accounts
 - **Auto Account Creation**: Firebase automatically creates accounts on first sign-in
 - **Cross-device Sync**: Access your notes from any device
 - **Privacy First**: All data encrypted and user-isolated
 - **Session Management**: Secure token-based authentication
 
-### **🎨 Modern Material Design 3**
+### **Modern Material Design 3**
 - **Dark/Light Mode**: Automatic theme switching based on system preferences
 - **Responsive UI**: Optimized for all Android screen sizes
 - **Smooth Animations**: Polished transitions and micro-interactions
@@ -40,7 +40,7 @@ A modern Flutter Android application for automatic license plate recognition (AL
 |-------------|------------------|----------------|
 | Real-time plate detection with confidence overlay | Add and manage notes for detected plates | Secure Google Sign-In integration |
 
-## 🚀 Installation
+## Installation
 
 ### Option 1: Install Pre-built APK
 1. Download the latest APK from the [releases section](releases)
@@ -76,7 +76,7 @@ flutter build apk --release
 flutter install
 ```
 
-## ⚙️ Firebase Setup
+## Firebase Setup
 
 ### 1. Create Firebase Project
 1. Go to [Firebase Console](https://console.firebase.google.com/)
@@ -115,7 +115,7 @@ service cloud.firestore {
 1. Run `flutterfire configure` (if you have FlutterFire CLI)
 2. Or manually update `lib/firebase_options.dart` with your project details
 
-## 🎯 Usage
+## Usage
 
 ### First Launch
 1. **Authentication**: Sign in with your Google account
@@ -140,7 +140,7 @@ service cloud.firestore {
 - **Stability**: Hold device steady during capture
 - **Clean Plates**: Works best with unobscured, clean license plates
 
-## 🛠️ Technical Architecture
+## Technical Architecture
 
 ### Core Technologies
 - **Flutter 3.10+**: Cross-platform UI framework
@@ -180,7 +180,7 @@ lib/
 3. **Notes**: User Input → Firestore → Cloud Sync
 4. **State**: Provider Pattern → UI Updates
 
-## 🔧 Configuration
+## Configuration
 
 ### Android Permissions
 The app requires these permissions:
@@ -202,7 +202,7 @@ Configuration file: `assets/runtime_data/openalpr.conf`
 - **Encrypted transport**: All data encrypted in transit
 - **Automatic backups**: Firestore provides automatic replication
 
-## 🧪 Development
+## Development
 
 ### Running Tests
 ```bash
@@ -234,7 +234,7 @@ flutter run --profile
 flutter run --release
 ```
 
-## 📊 Performance
+## Performance
 
 ### Benchmarks
 - **Detection Speed**: ~500ms per image on mid-range devices
@@ -248,7 +248,7 @@ flutter run --release
 - **Background Sync**: Syncs notes when app is backgrounded
 - **Memory Management**: Automatic cleanup of processed images
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -284,10 +284,6 @@ flutter run --release
 - **Clean lens**: Keep camera lens clean for better detection
 - **Stable connection**: Use Wi-Fi for faster sync when possible
 
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
 ### Development Setup
 1. Fork the repository
 2. Create a feature branch
@@ -296,18 +292,18 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 5. Add tests if applicable
 6. Submit a pull request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **[OpenALPR](https://github.com/openalpr/openalpr)** - Automatic license plate recognition engine
 - **[Firebase](https://firebase.google.com/)** - Backend services and authentication
 - **[Flutter](https://flutter.dev/)** - UI framework
 - **[Material Design 3](https://m3.material.io/)** - Design system
 
-## 📞 Support
+## Support
 
 - **Issues**: [GitHub Issues](issues)
 - **Discussions**: [GitHub Discussions](discussions)
@@ -315,4 +311,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Made with ❤️ using Flutter and Firebase**
+**Made using Flutter and Firebase**

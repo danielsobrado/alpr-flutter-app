@@ -1,26 +1,108 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart';
+import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:provider/provider.dart';
+import 'firebase_options.dart';
+import 'providers/auth_provider.dart';
+import 'screens/auth_wrapper.dart';
+import 'core/logger.dart';
+import 'core/analytics.dart';
+import 'core/constants.dart';
 
-void main() {
-  runApp(const TinyWhisperTesterApp());
+void main() async {
+  // Ensure proper initialization
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize logging first for error tracking
+  logger.initialize();
+  logger.i('Starting ALPR Flutter App v${AppConstants.appVersion}');
+  
+  // Set up global error handling
+  FlutterError.onError = (FlutterErrorDetails details) {
+    logger.f('Flutter error caught', details.exception, details.stack);
+    if (AppConfig.enableCrashlytics) {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+    }
+  };
+  
+  // Catch errors that occur outside of Flutter
+  PlatformDispatcher.instance.onError = (error, stack) {
+    logger.f('Platform error caught', error, stack);
+    if (AppConfig.enableCrashlytics) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    }
+    return true;
+  };
+  
+  // Initialize Firebase with error handling
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    logger.i('Firebase initialized successfully');
+    
+    // Initialize analytics and crash reporting
+    if (AppConfig.enableCrashlytics) {
+      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
+      logger.i('Crashlytics enabled');
+    }
+    
+    analytics.initialize();
+    
+    // Set system UI overlay style
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
+    
+    // Set preferred orientations
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+    
+  } catch (error, stackTrace) {
+    logger.f('Failed to initialize Firebase', error, stackTrace);
+    // Still run the app, but with limited functionality
+  }
+  
+  // Run the app with error boundary
+  runZonedGuarded(
+    () => runApp(const ALPRFlutterApp()),
+    (error, stackTrace) {
+      logger.f('Unhandled error in zone', error, stackTrace);
+      if (AppConfig.enableCrashlytics) {
+        FirebaseCrashlytics.instance.recordError(error, stackTrace, fatal: true);
+      }
+    },
+  );
 }
 
-class TinyWhisperTesterApp extends StatelessWidget {
-  const TinyWhisperTesterApp({super.key});
+class ALPRFlutterApp extends StatelessWidget {
+  const ALPRFlutterApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Tiny Whisper Tester',
-      theme: _buildLightTheme(),
-      darkTheme: _buildDarkTheme(),
-      themeMode: ThemeMode.system,
-      home: const HomeScreen(),
+    return ChangeNotifierProvider(
+      create: (context) => AuthProvider(),
+      child: MaterialApp(
+        title: 'ALPR Flutter',
+        theme: _buildLightTheme(),
+        darkTheme: _buildDarkTheme(),
+        themeMode: ThemeMode.system,
+        home: const AuthWrapper(),
+      ),
     );
   }
 
   ThemeData _buildLightTheme() {
-    const primaryColor = Color(0xFF6750A4);
+    const primaryColor = Color(0xFF1976D2); // Blue for camera/tech theme
     const surfaceColor = Color(0xFFFFFBFE);
     
     return ThemeData(
@@ -175,13 +257,13 @@ class TinyWhisperTesterApp extends StatelessWidget {
   }
 
   ThemeData _buildDarkTheme() {
-    const primaryColor = Color(0xFFD0BCFF);
+    const primaryColor = Color(0xFF64B5F6); // Lighter blue for dark theme
     const surfaceColor = Color(0xFF141218);
     
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF6750A4),
+        seedColor: const Color(0xFF1976D2),
         brightness: Brightness.dark,
       ),
       

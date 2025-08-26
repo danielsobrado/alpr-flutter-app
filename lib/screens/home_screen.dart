@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:path/path.dart' as path;
-import '../services/audio_service.dart';
-import '../services/whisper_service.dart';
-import '../widgets/model_download_widget.dart';
-import '../widgets/model_management_widget.dart';
-import '../widgets/audio_recorder_widget.dart';
-import '../widgets/transcription_display_widget.dart';
-import '../widgets/language_management_widget.dart';
-import '../widgets/summarization_settings_widget.dart';
-import '../widgets/summarization_prompts_widget.dart';
+import 'package:provider/provider.dart';
+import '../widgets/camera_preview_widget.dart';
+import '../widgets/plate_notes_widget.dart';
+import '../widgets/add_note_dialog.dart';
+import '../models/plate_result.dart';
+import '../providers/auth_provider.dart';
+import 'all_notes_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,77 +15,46 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
-  final AudioService _audioService = AudioService();
-  final WhisperService _whisperService = WhisperService();
-  
-  String? _currentModelPath;
-  String? _modelToReplace;
-  String _transcriptionText = '';
-  String? _selectedLanguage;
-  bool _isRecording = false;
-  final bool _isTranscribing = false;
-  double _currentSoundLevel = 0.0;
-  List<String> _supportedLanguages = [];
-  final GlobalKey _downloadWidgetKey = GlobalKey();
-  
-  late TabController _tabController;
-  int _currentTabIndex = 0;
+class _HomeScreenState extends State<HomeScreen> {
+  List<PlateResult> _detectedPlates = [];
+  String? _errorMessage;
+  bool _hasPermissions = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
-    _tabController.addListener(() {
-      setState(() {
-        _currentTabIndex = _tabController.index;
-      });
-    });
     _requestPermissions();
-    _loadSupportedLanguages();
-  }
-  
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _audioService.dispose();
-    super.dispose();
-  }
-  
-  Future<void> _loadSupportedLanguages() async {
-    try {
-      final languages = await _whisperService.getSupportedLanguages();
-      setState(() {
-        _supportedLanguages = languages;
-      });
-    } catch (e) {
-      print('Failed to load supported languages: $e');
-    }
   }
 
   Future<void> _requestPermissions() async {
     Map<Permission, PermissionStatus> permissions = await [
-      Permission.microphone,
+      Permission.camera,
       Permission.storage,
     ].request();
     
-    if (permissions[Permission.microphone]?.isDenied == true) {
+    if (permissions[Permission.camera]?.isDenied == true) {
       _showPermissionDialog(
-        'Microphone Permission Required',
-        'This app needs microphone access to record your voice for speech recognition.',
-        Permission.microphone,
+        'Camera Permission Required',
+        'This app needs camera access to capture images for license plate recognition.',
+        Permission.camera,
       );
+      return;
     }
     
     if (permissions[Permission.storage]?.isDenied == true) {
       _showPermissionDialog(
         'Storage Permission Required',
-        'This app needs storage access to download and manage speech recognition models.',
+        'This app needs storage access to save captured images.',
         Permission.storage,
       );
+      return;
     }
+    
+    setState(() {
+      _hasPermissions = true;
+    });
   }
-  
+
   void _showPermissionDialog(String title, String message, Permission permission) {
     showDialog(
       context: context,
@@ -101,20 +67,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
+                openAppSettings();
               },
-              child: const Text('Cancel'),
+              child: const Text('Open Settings'),
             ),
-            ElevatedButton(
-              onPressed: () async {
+            TextButton(
+              onPressed: () {
                 Navigator.of(context).pop();
-                
-                if (await permission.isPermanentlyDenied) {
-                  openAppSettings();
-                } else {
-                  await permission.request();
-                }
+                _requestPermissions();
               },
-              child: const Text('Grant Permission'),
+              child: const Text('Retry'),
             ),
           ],
         );
@@ -122,122 +84,45 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  void _onModelDownloaded(String modelPath) {
+  void _onPlatesDetected(List<PlateResult> plates) {
     setState(() {
-      _currentModelPath = modelPath;
-      _modelToReplace = null;
-    });
-  }
-  
-  void _onModelSelected(String modelPath) {
-    setState(() {
-      _currentModelPath = modelPath;
-    });
-  }
-  
-  void _onModelDeleted() {
-    setState(() {
-      _currentModelPath = null;
-    });
-  }
-  
-  void _onModelReplace(String modelPath) {
-    setState(() {
-      _modelToReplace = modelPath;
-    });
-    _showSnackBar('Replace mode activated. Download a new model to replace the selected one.');
-  }
-  
-  void _onModelReplaced() {
-    setState(() {
-      _modelToReplace = null;
+      _detectedPlates = plates;
+      _errorMessage = null;
     });
   }
 
-  Future<void> _startRecording() async {
-    final micStatus = await Permission.microphone.status;
-    if (!micStatus.isGranted) {
-      _showPermissionDialog(
-        'Microphone Permission Required',
-        'Please grant microphone permission to use speech recognition.',
-        Permission.microphone,
-      );
-      return;
-    }
-
+  void _onError(String error) {
     setState(() {
-      _isRecording = true;
-      _transcriptionText = '';
+      _errorMessage = error;
     });
-
-    try {
-      print('Starting speech recognition from UI...');
-      
-      final transcription = await _whisperService.startLiveSpeechRecognition(
-        language: _selectedLanguage,
-        onResult: (text) {
-          print('Home screen received transcription: "$text"');
-          if (text.isNotEmpty) {
-            setState(() {
-              _transcriptionText = text;
-            });
-          }
-        },
-        onSoundLevelChange: (level) {
-          print('Home screen received sound level: $level');
-          setState(() {
-            _currentSoundLevel = level;
-          });
-        },
-        onListeningStopped: () {
-          print('Speech recognition stopped from callback');
-          setState(() {
-            _isRecording = false;
-            _currentSoundLevel = 0.0;
-          });
-          _showSnackBar('Listening stopped. Tap Start to continue.');
-        },
-      );
-      
-      print('Speech recognition started successfully');
-      _showSnackBar('Speech recognition started. Start speaking...');
-      
-    } catch (e) {
-      print('Error starting speech recognition: $e');
-      _showSnackBar('Failed to start speech recognition: $e\n\nEnsure Google Speech Services is enabled on your device.');
-      setState(() {
-        _isRecording = false;
-      });
-    }
-  }
-
-  Future<void> _stopRecording() async {
-    setState(() {
-      _isRecording = false;
-      _currentSoundLevel = 0.0;
-    });
-
-    try {
-      await _whisperService.stopLiveSpeechRecognition();
-    } catch (e) {
-      _showSnackBar('Failed to stop speech recognition: $e');
-    }
-  }
-
-  void _onLanguageDetected(String? detectedLanguageCode) {
-    if (detectedLanguageCode != null && 
-        _supportedLanguages.contains(detectedLanguageCode) && 
-        detectedLanguageCode != _selectedLanguage) {
-      setState(() {
-        _selectedLanguage = detectedLanguageCode;
-      });
-      _showSnackBar('Language auto-updated to: ${detectedLanguageCode.toUpperCase()}');
-    }
-  }
-
-  void _showSnackBar(String message) {
+    
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(error),
+        backgroundColor: Colors.red,
+        action: SnackBarAction(
+          label: 'Dismiss',
+          textColor: Colors.white,
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ),
+    );
+  }
+
+  void _clearDetectedPlates() {
+    setState(() {
+      _detectedPlates.clear();
+      _errorMessage = null;
+    });
+  }
+
+  void _showNotesScreen() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const AllNotesScreen(),
+      ),
     );
   }
 
@@ -245,390 +130,286 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tiny Whisper Tester'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.mic_rounded), text: 'Speech'),
-            Tab(icon: Icon(Icons.storage_rounded), text: 'Models'),
-            Tab(icon: Icon(Icons.translate_rounded), text: 'Languages'),
-            Tab(icon: Icon(Icons.edit_note_rounded), text: 'Prompts'),
-            Tab(icon: Icon(Icons.settings_rounded), text: 'Settings'),
+        title: const Text('ALPR Scanner'),
+        actions: [
+          if (_detectedPlates.isNotEmpty)
+            IconButton(
+              onPressed: _clearDetectedPlates,
+              icon: const Icon(Icons.clear),
+              tooltip: 'Clear Results',
+            ),
+          IconButton(
+            onPressed: () {
+              _showInfoDialog();
+            },
+            icon: const Icon(Icons.info_outline),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == 'logout') {
+                await context.read<AuthProvider>().signOut();
+              } else if (value == 'notes') {
+                _showNotesScreen();
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem<String>(
+                value: 'notes',
+                child: Row(
+                  children: [
+                    Icon(Icons.note, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 8),
+                    const Text('My Notes'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Sign Out'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: _hasPermissions
+          ? Column(
+              children: [
+                // Camera preview
+                Expanded(
+                  flex: 3,
+                  child: CameraPreviewWidget(
+                    onPlatesDetected: _onPlatesDetected,
+                    onError: _onError,
+                  ),
+                ),
+                
+                // Results section
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, -2),
+                        ),
+                      ],
+                    ),
+                    child: _buildResultsSection(),
+                  ),
+                ),
+              ],
+            )
+          : _buildPermissionRequiredView(),
+    );
+  }
+
+  Widget _buildResultsSection() {
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Colors.red,
+              size: 48,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Error occurred',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage!,
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_detectedPlates.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.camera_alt_outlined,
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
+              size: 48,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Tap the camera button to scan license plates',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Detected Plates (${_detectedPlates.length})',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: ListView.separated(
+            itemCount: _detectedPlates.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final plate = _detectedPlates[index];
+              return Card(
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: plate.confidence > 80 
+                        ? Colors.green 
+                        : plate.confidence > 60 
+                            ? Colors.orange 
+                            : Colors.red,
+                    child: Text(
+                      '${index + 1}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    plate.plateNumber,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Confidence: ${plate.confidence.toStringAsFixed(1)}% • Region: ${plate.region}',
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        onPressed: () async {
+                          await showDialog(
+                            context: context,
+                            builder: (context) => AddNoteDialog(
+                              plateResult: plate,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.note_add),
+                        tooltip: 'Add Note',
+                      ),
+                      Icon(
+                        plate.confidence > 80 
+                            ? Icons.check_circle 
+                            : plate.confidence > 60 
+                                ? Icons.warning 
+                                : Icons.error,
+                        color: plate.confidence > 80 
+                            ? Colors.green 
+                            : plate.confidence > 60 
+                                ? Colors.orange 
+                                : Colors.red,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPermissionRequiredView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.camera_alt_outlined,
+              size: 80,
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
+            ),
+            const SizedBox(height: 32),
+            Text(
+              'Camera Access Required',
+              style: Theme.of(context).textTheme.headlineMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'This app needs access to your camera to scan license plates. Please grant camera permission to continue.',
+              style: Theme.of(context).textTheme.bodyLarge,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: _requestPermissions,
+              icon: const Icon(Icons.camera_alt),
+              label: const Text('Grant Camera Access'),
+            ),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildSpeechTab(),
-          _buildModelsTab(),
-          _buildLanguagesTab(),
-          _buildPromptsTab(),
-          _buildSettingsTab(),
-        ],
-      ),
     );
   }
 
-  Widget _buildSpeechTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Current Model Status & Language Selection
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.settings_rounded,
-                        size: 20,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Current Model',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  FutureBuilder<Map<String, dynamic>>(
-                    future: _whisperService.getModelInfo(),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData) {
-                        final info = snapshot.data!;
-                        final bool isOfflineActive = info['is_offline_active'] == true;
-                        final bool fileExists = info['file_exists'] == true;
-                        
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Model file path display
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    _currentModelPath != null 
-                                        ? path.basename(_currentModelPath!) 
-                                        : 'No model file selected',
-                                    style: TextStyle(
-                                      color: _currentModelPath != null && fileExists
-                                          ? (isOfflineActive ? Colors.green : Colors.orange)
-                                          : Colors.grey,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                if (_currentModelPath != null) ...[
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: isOfflineActive 
-                                          ? Colors.green.withOpacity(0.1)
-                                          : Colors.orange.withOpacity(0.1),
-                                      border: Border.all(
-                                        color: isOfflineActive ? Colors.green : Colors.orange,
-                                      ),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      isOfflineActive ? 'ACTIVE' : 'NOT USED',
-                                      style: TextStyle(
-                                        color: isOfflineActive ? Colors.green : Colors.orange,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            
-                            // Framework/Engine information
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: isOfflineActive 
-                                    ? Colors.green.withOpacity(0.1)
-                                    : Colors.blue.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: isOfflineActive 
-                                      ? Colors.green.withOpacity(0.3)
-                                      : Colors.blue.withOpacity(0.3),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        isOfflineActive ? Icons.offline_bolt : Icons.cloud,
-                                        size: 16,
-                                        color: isOfflineActive ? Colors.green : Colors.blue,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          info['framework'] ?? 'Using device speech recognition',
-                                          style: TextStyle(
-                                            color: isOfflineActive ? Colors.green.shade700 : Colors.blue.shade700,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  if (_currentModelPath != null && !isOfflineActive) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      info['offline_model_status'] ?? 'Offline model not active',
-                                      style: TextStyle(
-                                        color: Colors.orange.shade700,
-                                        fontSize: 11,
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            
-                            // Additional model details
-                            if (_currentModelPath != null) ...[
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 8,
-                                children: [
-                                  if (info['model_format'] != null)
-                                    _buildInfoChip('Format', info['model_format']),
-                                  if (info['model_type'] != null)
-                                    _buildInfoChip('Type', info['model_type']),
-                                  if (info['size'] != null)
-                                    _buildInfoChip('Size', _formatBytes(info['size'])),
-                                ],
-                              ),
-                            ],
-                          ],
-                        );
-                      } else {
-                        return const Text(
-                          'Using device speech recognition (no model file needed)',
-                          style: TextStyle(
-                            color: Colors.blue,
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.language_rounded,
-                        size: 20,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Language',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedLanguage,
-                    decoration: const InputDecoration(
-                      hintText: 'Select language',
-                    ),
-                    items: [
-                      const DropdownMenuItem<String>(
-                        value: null,
-                        child: Text('Auto-detect'),
-                      ),
-                      ..._supportedLanguages.map((String language) {
-                        return DropdownMenuItem<String>(
-                          value: language,
-                          child: Text(language.toUpperCase()),
-                        );
-                      }),
-                    ],
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _selectedLanguage = newValue;
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Audio Recording Section
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: AudioRecorderWidget(
-                isRecording: _isRecording,
-                isTranscribing: _isTranscribing,
-                onStartRecording: _startRecording,
-                onStopRecording: _stopRecording,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Transcription Display with Translation
-          Card(
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 300),
-              padding: const EdgeInsets.all(20.0),
-              child: TranscriptionDisplayWidget(
-                transcriptionText: _transcriptionText,
-                showTranslation: true,
-                onLanguageDetected: _onLanguageDetected,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildModelsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Model Download Section
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                children: [
-                  ModelDownloadWidget(
-                    key: _downloadWidgetKey,
-                    onModelDownloaded: _onModelDownloaded,
-                    onModelReplaced: _onModelReplaced,
-                    replaceModelPath: _modelToReplace,
-                  ),
-                  if (_modelToReplace != null) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        border: Border.all(color: Colors.orange.shade200),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info, color: Colors.orange.shade700),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Replace mode: Next download will replace the selected model',
-                              style: TextStyle(
-                                color: Colors.orange.shade700,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _modelToReplace = null;
-                              });
-                            },
-                            child: const Text('Cancel'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          
-          // Model Management Section
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: ModelManagementWidget(
-                currentModelPath: _currentModelPath,
-                onModelSelected: _onModelSelected,
-                onModelDeleted: _onModelDeleted,
-                onModelReplace: _onModelReplace,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLanguagesTab() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: LanguageManagementWidget(),
-    );
-  }
-
-  Widget _buildPromptsTab() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: SummarizationPromptsWidget(),
-    );
-  }
-
-  Widget _buildSettingsTab() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: SummarizationSettingsWidget(),
-    );
-  }
-
-  Widget _buildInfoChip(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Text(
-        '$label: $value',
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
+  void _showInfoDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('About ALPR Scanner'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('This app uses OpenALPR to detect license plates in real-time.'),
+            SizedBox(height: 16),
+            Text('Features:'),
+            SizedBox(height: 8),
+            Text('• Real-time camera preview'),
+            Text('• Automatic license plate detection'),
+            Text('• Confidence scoring'),
+            Text('• Region detection'),
+            SizedBox(height: 16),
+            Text('Tap the camera button to capture and analyze an image for license plates.'),
+          ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
-  }
-
-  String _formatBytes(int bytes) {
-    if (bytes < 1024) return '${bytes}B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)}GB';
   }
 }

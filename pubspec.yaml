@@ -1,5 +1,5 @@
-name: tiny_whisper_tester
-description: A Flutter app for testing Whisper Tiny models offline on Android
+name: alpr_flutter_app
+description: A Flutter Android app for automatic license plate recognition using OpenALPR
 
 publish_to: 'none'
 
@@ -16,39 +16,47 @@ dependencies:
   # UI
   cupertino_icons: ^1.0.6
   
-  # HTTP requests for model download
-  http: ^1.1.0
-  dio: ^5.3.2
-  
-  # Audio recording
-  record: ^6.1.1
+  # Camera functionality
+  camera: ^0.10.5+9
   permission_handler: ^12.0.1
-  
   
   # File system operations
   path_provider: ^2.1.1
-  
-  # ML inference - Speech Recognition
-  speech_to_text: ^7.0.0  # Production-ready live speech recognition
-  sherpa_onnx: ^1.10.41  # Offline ONNX model support
-  # whisper_ggml: ^1.5.0  # Android build issues
-  # flutter_pytorch_lite: ^0.1.0+3  # Temporarily disabled for Android build
-  
-  # Translation - Language Detection and Translation
-  google_mlkit_translation: ^0.12.0  # Offline translation with 50+ languages
-  google_mlkit_language_id: ^0.10.0  # Language detection
-  
-  # On-device LLM inference for summarization (placeholder)
-  # tflite_flutter: ^0.10.4  # TensorFlow Lite for Flutter - temporarily disabled due to compatibility issues
-  # Note: For Gemma models, we'll need to use TensorFlow Lite with custom delegates
-  
-  # Audio processing
   path: ^1.8.3
+  
+  # Image processing
+  image: ^4.1.3
+  
+  # JSON handling for OpenALPR results
+  json_annotation: ^4.8.1
+  
+  # HTTP requests (for potential future features)
+  http: ^1.1.0
+  
+  # Firebase and Authentication
+  firebase_core: ^3.13.0
+  firebase_auth: ^5.5.3
+  cloud_firestore: ^5.6.0
+  google_sign_in: ^6.2.2
+  
+  # State management
+  provider: ^6.1.1
+  
+  # Production readiness
+  logger: ^2.0.2+1
+  firebase_crashlytics: ^4.2.1
+  firebase_analytics: ^11.3.3
+  connectivity_plus: ^6.0.5
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  json_serializable: ^6.7.1
+  build_runner: ^2.4.7
+  mockito: ^5.4.4
+  integration_test:
+    sdk: flutter
 
 flutter:
   uses-material-design: true
@@ -57,6 +65,5 @@ flutter:
   generate: true
 
   assets:
-    # Add assets from the images directory to the application.
-    - assets/images/
-    - assets/models/
+    # OpenALPR configuration files
+    - assets/runtime_data/

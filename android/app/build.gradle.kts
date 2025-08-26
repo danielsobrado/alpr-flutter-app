@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.tiny_whisper_tester"
+    namespace = "com.example.alpr_flutter_app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,15 +21,15 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.tiny_whisper_tester"
+        applicationId = "com.example.alpr_flutter_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = (flutter.minSdkVersion as Int) // Required for ML Kit Translation (API level 23+)
+        minSdk = (flutter.minSdkVersion as Int) // Required for Camera API
         targetSdk = (flutter.targetSdkVersion as Int)
         versionCode = (flutter.versionCode as Int)
         versionName = flutter.versionName
         
-        // Enable multidex support for ML Kit dependencies
+        // Enable multidex support for OpenALPR dependencies
         multiDexEnabled = true
     }
 
@@ -44,4 +44,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // OpenALPR Android library
+    implementation("com.github.SandroMachado:openalpr-android:1.1.2")
 }

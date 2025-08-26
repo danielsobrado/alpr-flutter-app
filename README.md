@@ -34,7 +34,7 @@ A Flutter Android application for automatic license plate recognition (ALPR) wit
 - **Intuitive Navigation**: Clean, modern interface following Material Design guidelines
 - **Accessibility**: Full accessibility support and screen reader compatibility
 
-## 📱 Screenshots
+## Screenshots
 
 | Camera View | Notes Management | Authentication |
 |-------------|------------------|----------------|

@@ -111,9 +111,44 @@ service cloud.firestore {
 }
 ```
 
-### 4. Update Firebase Configuration
-1. Run `flutterfire configure` (if you have FlutterFire CLI)
-2. Or manually update `lib/firebase_options.dart` with your project details
+### 4. Configure SHA-1 Fingerprint
+Get your app's debug SHA-1 fingerprint:
+```bash
+# Method 1: Using Gradle
+cd android
+./gradlew signingReport
+
+# Method 2: Using keytool (if available)
+keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
+```
+
+Copy the SHA1 fingerprint from the `debug` variant and add it to Firebase Console → Project Settings → Your Android App → SHA certificate fingerprints.
+
+### 5. Update Firebase Configuration
+#### Option 1: Automatic (Recommended)
+```bash
+# Install FlutterFire CLI
+npm install -g firebase-tools
+firebase login
+
+# Configure project automatically
+flutterfire configure --project=your-project-id
+```
+
+#### Option 2: Manual Configuration
+1. Download `google-services.json` from Firebase Console
+2. Place in `android/app/google-services.json`
+3. Update `lib/firebase_options.dart` with your actual project values (replace placeholder API keys)
+
+### 6. Verify Setup
+After configuration, your `lib/firebase_options.dart` should have real values, not placeholders:
+```dart
+// ❌ Wrong - placeholder values
+apiKey: 'AIzaSyBYour-Android-API-Key-Here',
+
+// ✅ Correct - actual Firebase API key
+apiKey: 'AIzaSyC1234567890abcdefghijklmnop',
+```
 
 ## Usage
 
@@ -250,6 +285,69 @@ flutter run --release
 
 ## Troubleshooting
 
+### Firebase Configuration Issues
+
+**Error: `PlatformException(sign_in_failed, ApiException: 10, null, null)`**
+
+This is the most common error when Firebase is not properly configured. The error code `10` specifically means `DEVELOPER_ERROR`.
+
+**Root Causes & Solutions:**
+
+1. **Missing google-services.json**
+   ```bash
+   # Check if file exists
+   ls -la android/app/google-services.json
+   
+   # If missing, download from Firebase Console → Project Settings → Your apps → Download config file
+   ```
+
+2. **Invalid API Keys in firebase_options.dart**
+   ```dart
+   // Check lib/firebase_options.dart for placeholder values like:
+   apiKey: 'AIzaSyBYour-Android-API-Key-Here',  // ❌ Placeholder
+   
+   // Should be actual Firebase API keys:
+   apiKey: 'AIzaSyC1234567890abcdefghijklmnop',  // ✅ Real key
+   ```
+
+3. **Missing SHA-1 Fingerprint**
+   ```bash
+   # Get your debug SHA-1 fingerprint
+   cd android && ./gradlew signingReport
+   
+   # Copy SHA1 from output and add to Firebase Console:
+   # Project Settings → Your Android App → SHA certificate fingerprints → Add fingerprint
+   ```
+
+4. **Google Sign-In Not Enabled**
+   - Firebase Console → Authentication → Sign-in method → Google → Enable
+   - Set support email address
+
+5. **Missing Google Services Plugin**
+   - Ensure `android/build.gradle.kts` includes Google Services classpath
+   - Ensure `android/app/build.gradle.kts` applies Google Services plugin
+
+**Quick Fix Commands:**
+```bash
+# Complete Firebase reconfiguration
+npm install -g firebase-tools
+firebase login
+flutterfire configure --project=your-firebase-project-id
+
+# Verify configuration
+flutter clean && flutter pub get
+flutter run
+```
+
+**How Omi Avoids This Issue:**
+Omi uses the same Firebase architecture but with properly configured:
+- Real Firebase project with valid API keys
+- Correct google-services.json file
+- Registered SHA-1 fingerprints
+- Environment-specific configs (dev/prod)
+
+The key difference is Omi has completed the Firebase setup process, while your project currently has placeholder/dummy values.
+
 ### Common Issues
 
 **"Camera permission denied"**
@@ -262,7 +360,11 @@ flutter run --release
 - Try clearing app data and restarting
 - Check device has sufficient storage space
 
-**"Sign-in failed"**
+**"Sign-in failed" / PlatformException ApiException 10**
+- **Most Common Issue**: Missing or invalid Firebase configuration
+- Check that `android/app/google-services.json` exists and is valid
+- Verify your app's SHA-1 fingerprint is registered in Firebase Console
+- Ensure Google Sign-In is enabled in Firebase Console → Authentication → Sign-in method
 - Check internet connection
 - Verify Google Play Services is updated
 - Try signing out and back in

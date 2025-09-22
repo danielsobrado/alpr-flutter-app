@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:provider/provider.dart';
 import '../widgets/camera_preview_widget.dart';
-import '../widgets/plate_notes_widget.dart';
 import '../widgets/add_note_dialog.dart';
 import '../models/plate_result.dart';
-import '../providers/auth_provider.dart';
 import 'all_notes_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -29,7 +26,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _requestPermissions() async {
     Map<Permission, PermissionStatus> permissions = await [
       Permission.camera,
-      Permission.storage,
     ].request();
     
     if (permissions[Permission.camera]?.isDenied == true) {
@@ -41,14 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     
-    if (permissions[Permission.storage]?.isDenied == true) {
-      _showPermissionDialog(
-        'Storage Permission Required',
-        'This app needs storage access to save captured images.',
-        Permission.storage,
-      );
-      return;
-    }
+    // Storage permission is not required for internal app storage
     
     setState(() {
       _hasPermissions = true;
@@ -139,16 +128,12 @@ class _HomeScreenState extends State<HomeScreen> {
               tooltip: 'Clear Results',
             ),
           IconButton(
-            onPressed: () {
-              _showInfoDialog();
-            },
+            onPressed: _showInfoDialog,
             icon: const Icon(Icons.info_outline),
           ),
           PopupMenuButton<String>(
-            onSelected: (value) async {
-              if (value == 'logout') {
-                await context.read<AuthProvider>().signOut();
-              } else if (value == 'notes') {
+            onSelected: (value) {
+              if (value == 'notes') {
                 _showNotesScreen();
               }
             },
@@ -160,16 +145,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icon(Icons.note, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 8),
                     const Text('My Notes'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem<String>(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Sign Out'),
                   ],
                 ),
               ),
@@ -202,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 10,
                           offset: const Offset(0, -2),
                         ),
@@ -251,14 +226,14 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Icon(
               Icons.camera_alt_outlined,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
               size: 48,
             ),
             const SizedBox(height: 16),
             Text(
               'Tap the camera button to scan license plates',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
               textAlign: TextAlign.center,
             ),
@@ -324,15 +299,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         tooltip: 'Add Note',
                       ),
                       Icon(
-                        plate.confidence > 80 
-                            ? Icons.check_circle 
-                            : plate.confidence > 60 
-                                ? Icons.warning 
+                        plate.confidence > 80
+                            ? Icons.check_circle
+                            : plate.confidence > 60
+                                ? Icons.warning
                                 : Icons.error,
-                        color: plate.confidence > 80 
-                            ? Colors.green 
-                            : plate.confidence > 60 
-                                ? Colors.orange 
+                        color: plate.confidence > 80
+                            ? Colors.green
+                            : plate.confidence > 60
+                                ? Colors.orange
                                 : Colors.red,
                       ),
                     ],
@@ -356,7 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Icon(
               Icons.camera_alt_outlined,
               size: 80,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
             ),
             const SizedBox(height: 32),
             Text(

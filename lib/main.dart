@@ -1,15 +1,10 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
-import 'package:provider/provider.dart';
-import 'firebase_options.dart';
-import 'providers/auth_provider.dart';
-import 'screens/auth_wrapper.dart';
 import 'core/logger.dart';
-import 'core/analytics.dart';
 import 'core/constants.dart';
+import 'screens/home_screen.dart';
 
 void main() async {
   // Ensure proper initialization
@@ -19,67 +14,39 @@ void main() async {
   logger.initialize();
   logger.i('Starting ALPR Flutter App v${AppConstants.appVersion}');
   
-  // Set up global error handling
+  // Set up global error handling (Crashlytics disabled in ALPR-only mode)
   FlutterError.onError = (FlutterErrorDetails details) {
     logger.f('Flutter error caught', details.exception, details.stack);
-    if (AppConfig.enableCrashlytics) {
-      FirebaseCrashlytics.instance.recordFlutterFatalError(details);
-    }
   };
   
   // Catch errors that occur outside of Flutter
-  PlatformDispatcher.instance.onError = (error, stack) {
+  ui.PlatformDispatcher.instance.onError = (error, stack) {
     logger.f('Platform error caught', error, stack);
-    if (AppConfig.enableCrashlytics) {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    }
     return true;
   };
   
-  // Initialize Firebase with error handling
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    logger.i('Firebase initialized successfully');
-    
-    // Initialize analytics and crash reporting
-    if (AppConfig.enableCrashlytics) {
-      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
-      logger.i('Crashlytics enabled');
-    }
-    
-    analytics.initialize();
-    
-    // Set system UI overlay style
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: Colors.transparent,
-        systemNavigationBarIconBrightness: Brightness.dark,
-      ),
-    );
-    
-    // Set preferred orientations
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]);
-    
-  } catch (error, stackTrace) {
-    logger.f('Failed to initialize Firebase', error, stackTrace);
-    // Still run the app, but with limited functionality
-  }
+  // Minimal app init for ALPR-only mode (no Firebase)
+  // Set system UI overlay style
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+  );
+
+  // Set preferred orientations
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
   
   // Run the app with error boundary
   runZonedGuarded(
     () => runApp(const ALPRFlutterApp()),
     (error, stackTrace) {
       logger.f('Unhandled error in zone', error, stackTrace);
-      if (AppConfig.enableCrashlytics) {
-        FirebaseCrashlytics.instance.recordError(error, stackTrace, fatal: true);
-      }
     },
   );
 }
@@ -89,15 +56,12 @@ class ALPRFlutterApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => AuthProvider(),
-      child: MaterialApp(
-        title: 'ALPR Flutter',
-        theme: _buildLightTheme(),
-        darkTheme: _buildDarkTheme(),
-        themeMode: ThemeMode.system,
-        home: const AuthWrapper(),
-      ),
+    return MaterialApp(
+      title: 'ALPR Flutter',
+      theme: _buildLightTheme(),
+      darkTheme: _buildDarkTheme(),
+      themeMode: ThemeMode.system,
+      home: const HomeScreen(),
     );
   }
 
@@ -179,7 +143,7 @@ class ALPRFlutterApp extends StatelessWidget {
       // Card theme
       cardTheme: CardThemeData(
         elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.15),
+        shadowColor: Colors.black.withValues(alpha: 0.15),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
@@ -270,7 +234,7 @@ class ALPRFlutterApp extends StatelessWidget {
       // Card theme for dark mode
       cardTheme: CardThemeData(
         elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.3),
+        shadowColor: Colors.black.withValues(alpha: 0.3),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),

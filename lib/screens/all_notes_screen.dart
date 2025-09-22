@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as p;
 import '../models/plate_note.dart';
 import '../services/notes_service.dart';
 
@@ -125,6 +130,66 @@ class _AllNotesScreenState extends State<AllNotesScreen> {
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
           ),
+          PopupMenuButton<String>(
+            onSelected: (value) async {
+              switch (value) {
+                case 'export':
+                  await _exportNotes();
+                  break;
+                case 'import':
+                  await _importFromFile();
+                  break;
+                case 'import_paste':
+                  await _showImportDialog();
+                  break;
+                case 'clear':
+                  await _clearAllNotes();
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem<String>(
+                value: 'export',
+                child: Row(
+                  children: [
+                    Icon(Icons.file_upload, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 8),
+                    const Text('Export Notes'),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'import',
+                child: Row(
+                  children: [
+                    Icon(Icons.file_download, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 8),
+                    const Text('Import from File'),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'import_paste',
+                child: Row(
+                  children: [
+                    Icon(Icons.paste, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 8),
+                    const Text('Import (Paste JSON)'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'clear',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_forever, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Clear All Notes'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       body: _isLoading
@@ -139,7 +204,7 @@ class _AllNotesScreenState extends State<AllNotesScreen> {
                         Icon(
                           Icons.note_alt_outlined,
                           size: 80,
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
                         ),
                         const SizedBox(height: 24),
                         Text(
@@ -150,7 +215,7 @@ class _AllNotesScreenState extends State<AllNotesScreen> {
                         Text(
                           'Start scanning license plates and add notes to keep track of important information.',
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -202,7 +267,7 @@ class _AllNotesScreenState extends State<AllNotesScreen> {
                                     Text(
                                       _formatDateTime(note.createdAt),
                                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                       ),
                                     ),
                                     PopupMenuButton<String>(
@@ -245,14 +310,14 @@ class _AllNotesScreenState extends State<AllNotesScreen> {
                                       Icon(
                                         Icons.location_on,
                                         size: 16,
-                                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                       ),
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
                                           note.location!,
                                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                           ),
                                         ),
                                       ),
@@ -294,13 +359,13 @@ class _AllNotesScreenState extends State<AllNotesScreen> {
                 Icon(
                   Icons.access_time,
                   size: 16,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
                 const SizedBox(width: 4),
                 Text(
                   '${note.createdAt.day}/${note.createdAt.month}/${note.createdAt.year} at ${note.createdAt.hour}:${note.createdAt.minute.toString().padLeft(2, '0')}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ],
@@ -350,5 +415,164 @@ class _AllNotesScreenState extends State<AllNotesScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _exportNotes() async {
+    try {
+      // Let user pick a destination directory if available
+      final dirPath = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Select export folder');
+      final exportedPath = await _notesService.exportNotes();
+      String finalPath = exportedPath;
+
+      if (dirPath != null) {
+        final destPath = p.join(dirPath, p.basename(exportedPath));
+        await File(exportedPath).copy(destPath);
+        finalPath = destPath;
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Notes exported to:\n$finalPath'),
+          action: SnackBarAction(
+            label: 'Copy Path',
+            onPressed: () => Clipboard.setData(ClipboardData(text: finalPath)),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Export failed: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _importFromFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return; // Cancelled
+      final file = result.files.first;
+      String content;
+      if (file.bytes != null) {
+        content = utf8.decode(file.bytes!);
+      } else if (file.path != null) {
+        content = await File(file.path!).readAsString();
+      } else {
+        throw 'Could not read the selected file.';
+      }
+      final count = await _notesService.importNotesFromJson(content, merge: true);
+      await _loadNotes();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Imported $count notes'), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Import failed: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _showImportDialog() async {
+    final controller = TextEditingController();
+    bool merge = true;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Import Notes from JSON'),
+          content: SizedBox(
+            width: 500,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Paste JSON content exported earlier.'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: controller,
+                  maxLines: 10,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: '[ { "id": "...", "plateNumber": "ABC123" ... }, ... ]',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Switch(value: merge, onChanged: (v) => setState(() => merge = v)),
+                    const SizedBox(width: 8),
+                    const Text('Merge with existing (off = replace)')
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                try {
+                  final count = await _notesService.importNotesFromJson(controller.text, merge: merge);
+                  if (!mounted) return;
+                  Navigator.of(context).pop(true);
+                  await _loadNotes();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Imported $count notes'), backgroundColor: Colors.green),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Import failed: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              },
+              child: const Text('Import'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result == true) {
+      await _loadNotes();
+    }
+  }
+
+  Future<void> _clearAllNotes() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear All Notes'),
+        content: const Text('This will permanently delete all your local notes. Continue?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Clear All'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _notesService.clearAllNotes();
+      await _loadNotes();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('All notes cleared'), backgroundColor: Colors.green),
+        );
+      }
+    }
   }
 }

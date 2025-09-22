@@ -2,9 +2,7 @@
     <!-- Camera permission for license plate recognition -->
     <uses-permission android:name="android.permission.CAMERA" />
     
-    <!-- Storage permissions for image processing -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- Storage permissions removed: app uses internal storage only -->
     
     <!-- Internet permission for potential future features -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -45,10 +43,7 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        <!-- Google Sign-In configuration -->
-        <meta-data
-            android:name="com.google.android.gms.version"
-            android:value="@integer/google_play_services_version" />
+        <!-- Google Play Services metadata removed (no Google services used) -->
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

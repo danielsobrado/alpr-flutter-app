@@ -33,20 +33,13 @@ dependencies:
   # HTTP requests (for potential future features)
   http: ^1.1.0
   
-  # Firebase and Authentication
-  firebase_core: ^3.13.0
-  firebase_auth: ^5.5.3
-  cloud_firestore: ^5.6.0
-  google_sign_in: ^6.2.2
-  
   # State management
   provider: ^6.1.1
   
   # Production readiness
   logger: ^2.0.2+1
-  firebase_crashlytics: ^4.2.1
-  firebase_analytics: ^11.3.3
   connectivity_plus: ^6.0.5
+  file_picker: ^8.0.3
 
 dev_dependencies:
   flutter_test:

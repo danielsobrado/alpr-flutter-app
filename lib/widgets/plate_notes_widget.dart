@@ -122,10 +122,10 @@ class _PlateNotesWidgetState extends State<PlateNotesWidget> {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
               ),
             ),
             child: Column(
@@ -133,20 +133,20 @@ class _PlateNotesWidgetState extends State<PlateNotesWidget> {
                 Icon(
                   Icons.note_alt_outlined,
                   size: 48,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'No notes yet',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Tap + to add your first note',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
                 ),
               ],
@@ -243,14 +243,14 @@ class _PlateNotesWidgetState extends State<PlateNotesWidget> {
                             Icon(
                               Icons.location_on,
                               size: 14,
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
                                 note.location!,
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                 ),
                               ),
                             ),

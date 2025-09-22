@@ -85,23 +85,31 @@ void main() {
         const expectedUid = 'mock_uid';
         const expectedEmail = 'test@example.com';
         const expectedDisplayName = 'Test User';
-        
-        when(mockGoogleSignIn.signIn()).thenAnswer((_) async => mockGoogleSignInAccount);
-        when(mockGoogleSignInAccount.authentication).thenAnswer((_) async => mockGoogleSignInAuth);
+
+        when(mockGoogleSignIn.signIn())
+            .thenAnswer((_) async => mockGoogleSignInAccount);
+        when(mockGoogleSignInAccount.authentication)
+            .thenAnswer((_) async => mockGoogleSignInAuth);
         when(mockGoogleSignInAuth.accessToken).thenReturn('mock_access_token');
         when(mockGoogleSignInAuth.idToken).thenReturn('mock_id_token');
-        
-        when(mockFirebaseAuth.signInWithCredential(any)).thenAnswer((_) async => mockUserCredential);
+
+        when(mockFirebaseAuth.signInWithCredential(any))
+            .thenAnswer((_) async => mockUserCredential);
         when(mockUserCredential.user).thenReturn(mockUser);
         when(mockUser.uid).thenReturn(expectedUid);
         when(mockUser.email).thenReturn(expectedEmail);
         when(mockUser.displayName).thenReturn(expectedDisplayName);
-        
-        when(mockFirestore.collection('users')).thenReturn(mockCollectionReference);
-        when(mockCollectionReference.doc(expectedUid)).thenReturn(mockDocumentReference);
-        when(mockDocumentReference.get()).thenAnswer((_) async => mockDocumentSnapshot);
+
+        when(mockFirestore.collection('users'))
+            .thenReturn(mockCollectionReference);
+        when(mockCollectionReference.doc(expectedUid))
+            .thenReturn(mockDocumentReference);
+        when(mockDocumentReference.get())
+            .thenAnswer((_) async => mockDocumentSnapshot);
         when(mockDocumentSnapshot.exists).thenReturn(false);
-        when(mockDocumentReference.set(any)).thenAnswer((_) async {});
+        when(mockDocumentReference.set(any)).thenAnswer((_) async {
+          return null;
+        });
 
         // Act
         // Note: This test would need proper dependency injection setup
@@ -128,7 +136,9 @@ void main() {
     group('signOut', () {
       test('should call signOut on both Firebase and Google', () async {
         // Arrange
-        when(mockFirebaseAuth.signOut()).thenAnswer((_) async {});
+        when(mockFirebaseAuth.signOut()).thenAnswer((_) async {
+          return null;
+        });
         when(mockGoogleSignIn.signOut()).thenAnswer((_) async => null);
 
         // Act

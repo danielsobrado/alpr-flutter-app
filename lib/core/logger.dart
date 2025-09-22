@@ -1,6 +1,5 @@
 import 'dart:developer' as developer;
 import 'package:logger/logger.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'constants.dart';
 
 class AppLogger {
@@ -23,13 +22,10 @@ class AppLogger {
               lineLength: 120,
               colors: true,
               printEmojis: true,
-              printTime: true,
+              dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
             ),
       level: AppConfig.isProduction ? Level.warning : Level.debug,
-      output: MultiOutput([
-        ConsoleOutput(),
-        if (AppConfig.enableCrashlytics) CrashlyticsOutput(),
-      ]),
+      output: ConsoleOutput(),
     );
 
     _isInitialized = true;
@@ -74,15 +70,7 @@ class AppLogger {
     if (!_isInitialized) initialize();
     _logger.e(message, error: error, stackTrace: stackTrace);
     
-    // Log to Firebase Crashlytics for production monitoring
-    if (AppConfig.enableCrashlytics) {
-      FirebaseCrashlytics.instance.recordError(
-        error ?? message,
-        stackTrace,
-        reason: message,
-        fatal: false,
-      );
-    }
+    // Crashlytics disabled in ALPR-only mode
     
     developer.log(
       message, 
@@ -97,15 +85,7 @@ class AppLogger {
     if (!_isInitialized) initialize();
     _logger.f(message, error: error, stackTrace: stackTrace);
     
-    // Always report fatal errors to Crashlytics
-    if (AppConfig.enableCrashlytics) {
-      FirebaseCrashlytics.instance.recordError(
-        error ?? message,
-        stackTrace,
-        reason: message,
-        fatal: true,
-      );
-    }
+    // Crashlytics disabled in ALPR-only mode
     
     developer.log(
       message, 
@@ -152,27 +132,7 @@ class AppLogger {
   void security(String event, {Map<String, dynamic>? context}) {
     w('Security event: $event', context);
     
-    // Always log security events to Crashlytics for monitoring
-    if (AppConfig.enableCrashlytics) {
-      FirebaseCrashlytics.instance.log('Security event: $event');
-      if (context != null) {
-        for (final entry in context.entries) {
-          FirebaseCrashlytics.instance.setCustomKey(entry.key, entry.value);
-        }
-      }
-    }
-  }
-}
-
-// Custom output for Crashlytics integration
-class CrashlyticsOutput extends LogOutput {
-  @override
-  void output(OutputEvent event) {
-    if (!AppConfig.enableCrashlytics) return;
-    
-    for (final line in event.lines) {
-      FirebaseCrashlytics.instance.log(line);
-    }
+    // Crashlytics disabled in ALPR-only mode
   }
 }
 

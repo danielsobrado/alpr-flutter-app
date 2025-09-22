@@ -1,6 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'constants.dart';
 import 'logger.dart';
@@ -38,8 +35,11 @@ class OpenALPRException extends AppException {
   OpenALPRException(super.message, {super.code, super.originalError, super.stackTrace});
 }
 
-class FirestoreException extends AppException {
-  FirestoreException(super.message, {super.code, super.originalError, super.stackTrace});
+// Firestore/Firebase-specific exceptions removed for ALPR-only mode
+
+// Generic concrete exception for non-specific errors
+class GenericAppException extends AppException {
+  GenericAppException(super.message, {super.code, super.originalError, super.stackTrace});
 }
 
 class ValidationException extends AppException {
@@ -59,10 +59,6 @@ class ErrorHandler {
     logger.e('Handling error: ${error.runtimeType}', error, stackTrace);
 
     switch (error.runtimeType) {
-      case FirebaseAuthException:
-        return _handleFirebaseAuthException(error as FirebaseAuthException, stackTrace);
-      case FirebaseException:
-        return _handleFirebaseException(error as FirebaseException, stackTrace);
       case PlatformException:
         return _handlePlatformException(error as PlatformException, stackTrace);
       case FormatException:
@@ -75,107 +71,12 @@ class ErrorHandler {
       case AppException:
         return error as AppException;
       default:
-        return AppException(
+        return GenericAppException(
           AppConstants.genericError,
           originalError: error,
           stackTrace: stackTrace,
         );
     }
-  }
-
-  AuthException _handleFirebaseAuthException(FirebaseAuthException error, StackTrace? stackTrace) {
-    String message;
-    
-    switch (error.code) {
-      case 'user-not-found':
-        message = 'No account found with this email address.';
-        break;
-      case 'wrong-password':
-        message = 'Incorrect password. Please try again.';
-        break;
-      case 'email-already-in-use':
-        message = 'An account already exists with this email address.';
-        break;
-      case 'weak-password':
-        message = 'Password is too weak. Please choose a stronger password.';
-        break;
-      case 'invalid-email':
-        message = 'Invalid email address format.';
-        break;
-      case 'user-disabled':
-        message = 'This account has been disabled. Contact support for assistance.';
-        break;
-      case 'too-many-requests':
-        message = 'Too many failed attempts. Please try again later.';
-        break;
-      case 'network-request-failed':
-        message = 'Network error. Please check your internet connection.';
-        break;
-      case 'account-exists-with-different-credential':
-        message = 'An account already exists with this email using a different sign-in method.';
-        break;
-      default:
-        message = error.message ?? AppConstants.authError;
-    }
-
-    return AuthException(
-      message,
-      code: error.code,
-      originalError: error,
-      stackTrace: stackTrace,
-    );
-  }
-
-  AppException _handleFirebaseException(FirebaseException error, StackTrace? stackTrace) {
-    String message;
-    
-    switch (error.code) {
-      case 'permission-denied':
-        message = 'Access denied. Please check your permissions.';
-        break;
-      case 'not-found':
-        message = 'Requested data not found.';
-        break;
-      case 'already-exists':
-        message = 'Data already exists.';
-        break;
-      case 'resource-exhausted':
-        message = 'Service temporarily unavailable. Please try again later.';
-        break;
-      case 'failed-precondition':
-        message = 'Operation cannot be completed in current state.';
-        break;
-      case 'aborted':
-        message = 'Operation was aborted. Please try again.';
-        break;
-      case 'out-of-range':
-        message = 'Invalid input range.';
-        break;
-      case 'unimplemented':
-        message = 'Feature not available.';
-        break;
-      case 'internal':
-        message = 'Internal server error. Please try again.';
-        break;
-      case 'unavailable':
-        message = 'Service temporarily unavailable.';
-        break;
-      case 'data-loss':
-        message = 'Data corruption detected. Please contact support.';
-        break;
-      case 'unauthenticated':
-        message = 'Authentication required. Please sign in.';
-        break;
-      default:
-        message = error.message ?? AppConstants.firestoreError;
-    }
-
-    return FirestoreException(
-      message,
-      code: error.code,
-      originalError: error,
-      stackTrace: stackTrace,
-    );
   }
 
   AppException _handlePlatformException(PlatformException error, StackTrace? stackTrace) {
@@ -217,7 +118,7 @@ class ErrorHandler {
         
       default:
         message = error.message ?? AppConstants.genericError;
-        return AppException(message, code: error.code, originalError: error, stackTrace: stackTrace);
+        return GenericAppException(message, code: error.code, originalError: error, stackTrace: stackTrace);
     }
   }
 
@@ -297,7 +198,7 @@ Future<T> safeExecute<T>(
   Future<T> Function() operation, {
   String? context,
   T? fallback,
-  bool rethrow = true,
+  bool shouldRethrow = true,
 }) async {
   try {
     logger.d('Executing operation: $context');
@@ -308,7 +209,7 @@ Future<T> safeExecute<T>(
     final appException = errorHandler.handleError(error, stackTrace);
     logger.e('Operation failed: $context', appException, stackTrace);
     
-    if (rethrow) {
+    if (shouldRethrow) {
       throw appException;
     } else if (fallback != null) {
       return fallback;
@@ -322,7 +223,7 @@ T? safeExecuteSync<T>(
   T Function() operation, {
   String? context,
   T? fallback,
-  bool rethrow = false,
+  bool shouldRethrow = false,
 }) {
   try {
     logger.d('Executing sync operation: $context');
@@ -333,7 +234,7 @@ T? safeExecuteSync<T>(
     final appException = errorHandler.handleError(error, stackTrace);
     logger.e('Sync operation failed: $context', appException, stackTrace);
     
-    if (rethrow) {
+    if (shouldRethrow) {
       throw appException;
     }
     return fallback;

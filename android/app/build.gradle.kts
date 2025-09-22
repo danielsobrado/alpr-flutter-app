@@ -1,7 +1,6 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -25,9 +24,9 @@ android {
         applicationId = "com.example.alpr_flutter_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = (flutter.minSdkVersion as Int) // Required for Camera API
-        targetSdk = (flutter.targetSdkVersion as Int)
-        versionCode = (flutter.versionCode as Int)
+        minSdk = flutter.minSdkVersion // Required for Camera API
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
         versionName = flutter.versionName
         
         // Enable multidex support for OpenALPR dependencies

@@ -10,7 +10,7 @@ class OpenALPRService {
   static const MethodChannel _channel = MethodChannel('openalpr_flutter');
   
   static const String _configFileName = 'openalpr.conf';
-  static const String _runtimeDataPath = 'runtime_data';
+  static const String _runtimeDataDirName = 'runtime_data';
   
   bool _isInitialized = false;
   String? _configPath;
@@ -45,14 +45,14 @@ class OpenALPRService {
   /// Copy OpenALPR configuration assets to app directory
   Future<void> _copyAssets() async {
     final documentsDir = await getApplicationDocumentsDirectory();
-    final targetDir = Directory(path.join(documentsDir.path, _runtimeDataPath));
+    final targetDir = Directory(path.join(documentsDir.path, _runtimeDataDirName));
     
     if (!await targetDir.exists()) {
       await targetDir.create(recursive: true);
     }
     
     // Copy configuration file
-    final configAsset = await rootBundle.loadString('assets/$_runtimeDataPath/$_configFileName');
+    final configAsset = await rootBundle.loadString('assets/$_runtimeDataDirName/$_configFileName');
     final configFile = File(path.join(targetDir.path, _configFileName));
     await configFile.writeAsString(configAsset);
     

@@ -2,6 +2,11 @@ buildscript {
     repositories {
         google()
         mavenCentral()
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.1.0")
+        classpath("com.chaquo.python:gradle:15.0.1")
     }
 }
 

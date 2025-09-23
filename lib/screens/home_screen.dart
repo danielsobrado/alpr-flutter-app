@@ -119,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ALPR Scanner'),
+        title: const Text('Camera App'),
         actions: [
           if (_detectedPlates.isNotEmpty)
             IconButton(
@@ -231,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Tap the camera button to scan license plates',
+              'Tap the camera button to take photos',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
@@ -361,21 +361,20 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('About ALPR Scanner'),
+        title: const Text('About Camera App'),
         content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('This app uses OpenALPR to detect license plates in real-time.'),
+            Text('A simple camera app for taking photos.'),
             SizedBox(height: 16),
             Text('Features:'),
             SizedBox(height: 8),
             Text('• Real-time camera preview'),
-            Text('• Automatic license plate detection'),
-            Text('• Confidence scoring'),
-            Text('• Region detection'),
+            Text('• Photo capture'),
+            Text('• Camera controls'),
             SizedBox(height: 16),
-            Text('Tap the camera button to capture and analyze an image for license plates.'),
+            Text('Tap the camera button to take a photo.'),
           ],
         ),
         actions: [

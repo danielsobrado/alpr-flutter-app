@@ -16,7 +16,9 @@ PlateNote _$PlateNoteFromJson(Map<String, dynamic> json) => PlateNote(
       longitude: (json['longitude'] as num?)?.toDouble(),
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
-      imageUrls: (json['imageUrls'] as List<dynamic>?)?.map((e) => e as String).toList(),
+      imageUrls: (json['imageUrls'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList(),
       metadata: json['metadata'] as Map<String, dynamic>?,
     );
 

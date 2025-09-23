@@ -51,13 +51,79 @@ class OpenALPRService {
       await targetDir.create(recursive: true);
     }
     
-    // Copy configuration file
-    final configAsset = await rootBundle.loadString('assets/$_runtimeDataDirName/$_configFileName');
-    final configFile = File(path.join(targetDir.path, _configFileName));
-    await configFile.writeAsString(configAsset);
+    // Create required directory structure
+    await _createDirectoryStructure(targetDir);
     
-    _configPath = configFile.path;
-    _runtimeDataPath = targetDir.path;
+    try {
+      // Copy main configuration file
+      final configAsset = await rootBundle.loadString('assets/$_runtimeDataDirName/$_configFileName');
+      final configFile = File(path.join(targetDir.path, _configFileName));
+      await configFile.writeAsString(configAsset);
+      
+      // Copy all runtime data files
+      await _copyRuntimeDataFiles(targetDir);
+      
+      _configPath = configFile.path;
+      _runtimeDataPath = targetDir.path;
+      
+      print('OpenALPR assets copied successfully');
+      print('Config path: $_configPath');
+      print('Runtime data path: $_runtimeDataPath');
+    } catch (e) {
+      print('Error copying OpenALPR assets: $e');
+      throw Exception('Failed to copy required OpenALPR assets: $e');
+    }
+  }
+
+  /// Create required directory structure for OpenALPR
+  Future<void> _createDirectoryStructure(Directory targetDir) async {
+    final directories = [
+      'config',
+      'ocr/tessdata',
+      'postprocess',
+      'region',
+      'keypoints/us',
+    ];
+    
+    for (final dir in directories) {
+      final directory = Directory(path.join(targetDir.path, dir));
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+      }
+    }
+  }
+
+  /// Copy all runtime data files from assets
+  Future<void> _copyRuntimeDataFiles(Directory targetDir) async {
+    // File mappings: asset path -> target path
+    final fileMap = {
+      'assets/$_runtimeDataDirName/config/us.conf': 'config/us.conf',
+      'assets/$_runtimeDataDirName/ocr/tessdata/lus.traineddata': 'ocr/tessdata/lus.traineddata',
+      'assets/$_runtimeDataDirName/postprocess/us.patterns': 'postprocess/us.patterns',
+      'assets/$_runtimeDataDirName/region/us.xml': 'region/us.xml',
+    };
+
+    for (final entry in fileMap.entries) {
+      final assetPath = entry.key;
+      final targetPath = entry.value;
+      final targetFile = File(path.join(targetDir.path, targetPath));
+
+      try {
+        if (assetPath.endsWith('.traineddata')) {
+          // Handle binary files
+          final bytes = await rootBundle.load(assetPath);
+          await targetFile.writeAsBytes(bytes.buffer.asUint8List());
+        } else {
+          // Handle text files
+          final content = await rootBundle.loadString(assetPath);
+          await targetFile.writeAsString(content);
+        }
+        print('Copied: $assetPath -> ${targetFile.path}');
+      } catch (e) {
+        print('Warning: Could not copy $assetPath: $e');
+        // Continue with other files if one fails
+      }
+    }
   }
 
   /// Recognize license plates from image file

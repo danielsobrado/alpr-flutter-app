@@ -60,3 +60,4 @@ flutter:
   assets:
     # OpenALPR configuration files
     - assets/runtime_data/
+    - assets/runtime_data/ocr/tessdata/

@@ -3,6 +3,7 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.chaquo.python")
 }
 
 android {
@@ -31,6 +32,12 @@ android {
         
         // Enable multidex support for OpenALPR dependencies
         multiDexEnabled = true
+        
+        // Limit to specific architectures for OpenALPR native lib compatibility
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
+        
     }
 
     buildTypes {
@@ -42,11 +49,22 @@ android {
     }
 }
 
+chaquopy {
+    defaultConfig {
+        buildPython("/usr/bin/python3")
+        pip {
+            install("opencv-python")
+            install("numpy") 
+            install("Pillow")
+        }
+    }
+}
+
 flutter {
     source = "../.."
 }
 
 dependencies {
-    // OpenALPR Android library
-    implementation("com.github.SandroMachado:openalpr-android:1.1.2")
+    // OpenALPR dependency removed due to ARM64 compatibility issues on modern devices
+    // implementation("com.github.SandroMachado:openalpr-android:1.1.2")
 }

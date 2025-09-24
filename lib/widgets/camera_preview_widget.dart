@@ -8,11 +8,15 @@ import '../models/plate_result.dart';
 class CameraPreviewWidget extends StatefulWidget {
   final Function(List<PlateResult>) onPlatesDetected;
   final Function(String) onError;
+  final Function(String)? onStatusUpdate;
+  final Function(String)? onImageCaptured;
 
   const CameraPreviewWidget({
     super.key,
     required this.onPlatesDetected,
     required this.onError,
+    this.onStatusUpdate,
+    this.onImageCaptured,
   });
 
   @override
@@ -68,7 +72,9 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
       if (chaquopyAvailable) {
         await _chaquopyAlprService.initialize();
         _useChaquopyAlpr = true;
-        widget.onError('🔥 Chaquopy ALPR ready! Advanced local processing on your Samsung Galaxy S25.');
+        if (widget.onStatusUpdate != null) {
+          widget.onStatusUpdate!('🔥 Chaquopy ALPR ready! Advanced local processing on your Samsung Galaxy S25.');
+        }
         print('Chaquopy ALPR: Successfully initialized');
         return;
       }
@@ -116,10 +122,15 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
     try {
       final XFile image = await _controller!.takePicture();
       
+      // Notify that image was captured
+      widget.onImageCaptured?.call(image.path);
+      
       // Try ALPR processing based on available service (priority order)
       if (_useChaquopyAlpr && _chaquopyAlprService.isInitialized) {
         try {
-          widget.onError('🔥 Processing with Chaquopy ALPR...');
+          if (widget.onStatusUpdate != null) {
+            widget.onStatusUpdate!('🔥 Processing with Chaquopy ALPR...');
+          }
           final plates = await _chaquopyAlprService.recognizePlatesFromFile(
             imagePath: image.path,
             country: 'us',
@@ -132,9 +143,13 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
             widget.onPlatesDetected(plates);
             
             if (plates.isNotEmpty) {
-              widget.onError('✅ Chaquopy ALPR detected ${plates.length} plate(s)!');
+              if (widget.onStatusUpdate != null) {
+                widget.onStatusUpdate!('✅ Chaquopy ALPR detected ${plates.length} plate(s)!');
+              }
             } else {
-              widget.onError('📸 Photo processed - no plates detected');
+              if (widget.onStatusUpdate != null) {
+                widget.onStatusUpdate!('📸 Photo processed - no plates detected');
+              }
             }
           }
         } catch (e) {
@@ -148,7 +163,9 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
         }
       } else if (_useTermuxAlpr && _termuxAlprService.isInitialized) {
         try {
-          widget.onError('🔍 Processing with Termux ALPR...');
+          if (widget.onStatusUpdate != null) {
+            widget.onStatusUpdate!('🔍 Processing with Termux ALPR...');
+          }
           final plates = await _termuxAlprService.recognizePlatesFromFile(
             imagePath: image.path,
             country: 'us',
@@ -161,9 +178,13 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
             widget.onPlatesDetected(plates);
             
             if (plates.isNotEmpty) {
-              widget.onError('✅ Termux ALPR detected ${plates.length} plate(s)!');
+              if (widget.onStatusUpdate != null) {
+                widget.onStatusUpdate!('✅ Termux ALPR detected ${plates.length} plate(s)!');
+              }
             } else {
-              widget.onError('📸 Photo processed - no plates detected');
+              if (widget.onStatusUpdate != null) {
+                widget.onStatusUpdate!('📸 Photo processed - no plates detected');
+              }
             }
           }
         } catch (e) {
@@ -189,9 +210,13 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
             widget.onPlatesDetected(plates);
             
             if (plates.isNotEmpty) {
-              widget.onError('✅ Detected ${plates.length} plate(s)');
+              if (widget.onStatusUpdate != null) {
+                widget.onStatusUpdate!('✅ Detected ${plates.length} plate(s)');
+              }
             } else {
-              widget.onError('📸 Photo captured - no plates detected');
+              if (widget.onStatusUpdate != null) {
+                widget.onStatusUpdate!('📸 Photo captured - no plates detected');
+              }
             }
           }
         } catch (e) {
@@ -205,7 +230,9 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
         }
       } else {
         // No ALPR available - camera only mode
-        widget.onError('📸 Photo captured! Chaquopy ALPR ready for processing in this build.');
+        if (widget.onStatusUpdate != null) {
+          widget.onStatusUpdate!('📸 Photo captured! Chaquopy ALPR ready for processing in this build.');
+        }
         if (mounted) {
           setState(() {
             _detectedPlates = [];
@@ -344,28 +371,34 @@ class PlatePainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     );
 
-    // Create path from coordinates
-    final path = Path();
+    // Extract rectangle coordinates (first coordinate is top-left)
     final coordinates = plate.coordinates;
+    final topLeft = coordinates[0];
+    final bottomRight = coordinates[2];
     
-    // Scale coordinates to match the widget size
-    final scaleX = size.width / cameraController.value.previewSize!.height;
-    final scaleY = size.height / cameraController.value.previewSize!.width;
+    // Scale coordinates to match the camera preview size
+    // The coordinates come from our processed image (max 1280 width)
+    // but we need to scale them to the camera preview display size
+    final previewSize = cameraController.value.previewSize!;
+    final scaleX = size.width / 1280.0; // Match our Python processing width
+    final scaleY = size.height / 960.0; // Match our Python processing height
 
-    path.moveTo(coordinates[0].x * scaleX, coordinates[0].y * scaleY);
-    for (int i = 1; i < coordinates.length; i++) {
-      path.lineTo(coordinates[i].x * scaleX, coordinates[i].y * scaleY);
-    }
-    path.close();
-
-    canvas.drawPath(path, paint);
+    // Calculate scaled rectangle
+    final left = topLeft.x * scaleX;
+    final top = topLeft.y * scaleY;
+    final right = bottomRight.x * scaleX;
+    final bottom = bottomRight.y * scaleY;
+    
+    // Draw rectangle
+    final rect = Rect.fromLTRB(left, top, right, bottom);
+    canvas.drawRect(rect, paint);
 
     // Draw plate text
     textPaint.text = TextSpan(
       text: '${plate.plateNumber} (${plate.confidence.toStringAsFixed(1)}%)',
       style: TextStyle(
         color: plate.confidence > 80 ? Colors.green : Colors.orange,
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: FontWeight.bold,
         shadows: const [
           Shadow(
@@ -379,11 +412,16 @@ class PlatePainter extends CustomPainter {
 
     textPaint.layout();
     
-    // Position text above the plate
-    final centerX = coordinates.map((c) => c.x * scaleX).reduce((a, b) => a + b) / coordinates.length;
-    final minY = coordinates.map((c) => c.y * scaleY).reduce((a, b) => a < b ? a : b);
+    // Position text above the rectangle
+    final centerX = (left + right) / 2;
+    final textX = centerX - textPaint.width / 2;
+    final textY = top - 25; // Position above the rectangle
     
-    textPaint.paint(canvas, Offset(centerX - textPaint.width / 2, minY - 30));
+    // Ensure text stays within bounds
+    final adjustedX = textX.clamp(0.0, size.width - textPaint.width);
+    final adjustedY = textY.clamp(0.0, size.height - textPaint.height);
+    
+    textPaint.paint(canvas, Offset(adjustedX, adjustedY));
   }
 
   @override

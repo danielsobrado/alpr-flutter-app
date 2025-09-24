@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import '../services/alpr_service_factory.dart';
 import '../services/alpr_service_interface.dart';
+import '../services/analytics_service.dart';
 import '../core/alpr_config.dart';
 import '../models/plate_result.dart';
 
@@ -30,6 +31,7 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
   bool _isProcessing = false;
   List<PlateResult> _detectedPlates = [];
   ALPRServiceInterface? _alprService;
+  final AnalyticsService _analyticsService = AnalyticsService();
 
   @override
   void initState() {
@@ -113,7 +115,10 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
             });
             widget.onPlatesDetected(plates);
 
+            // Record detections in analytics
             if (plates.isNotEmpty) {
+              await _analyticsService.recordDetections(plates, providerName);
+              
               if (widget.onStatusUpdate != null) {
                 widget.onStatusUpdate!('✅ $providerName detected ${plates.length} plate(s)!');
               }

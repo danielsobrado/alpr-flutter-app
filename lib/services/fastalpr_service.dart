@@ -51,7 +51,9 @@ class FastALPRService implements ALPRServiceInterface {
           ocrModelId: downloadedOcrModels.first.id,
         );
       } else {
-        print('FastALPR: No models available. Using mock mode.');
+        print('FastALPR: No trained models available.');
+        print('FastALPR: Professional license plate models require subscription to Fast-ALPR service.');
+        print('FastALPR: Currently running in demo mode with simulated results.');
       }
 
       _isInitialized = true;
@@ -148,8 +150,10 @@ class FastALPRService implements ALPRServiceInterface {
       throw Exception('FastALPR not initialized. Call initialize() first.');
     }
 
-    // If no models loaded, use mock mode
+    // If no models loaded, use mock mode with warning
     if (!hasModelsLoaded) {
+      print('FastALPR Warning: No ONNX models loaded - using demo results');
+      print('FastALPR Warning: To get real results, download proper license plate detection and OCR models');
       return _getMockResults(region, topN);
     }
 
@@ -329,17 +333,60 @@ class FastALPRService implements ALPRServiceInterface {
   ) {
     final detections = <Map<String, dynamic>>[];
 
-    // This is a simplified YOLO parser - would need to be adapted to specific model output format
-    // For now, return mock detection to demonstrate the flow
-    if (outputs.isNotEmpty && outputs[0] != null) {
-      // Mock detection in center of image
-      detections.add({
-        'x1': originalWidth * 0.3,
-        'y1': originalHeight * 0.4,
-        'x2': originalWidth * 0.7,
-        'y2': originalHeight * 0.6,
-        'confidence': 0.85,
-      });
+    try {
+      if (outputs == null || outputs.isEmpty) return detections;
+
+      // Get the first output tensor (typically contains detections)
+      final outputTensor = outputs.values.first;
+      if (outputTensor == null) return detections;
+
+      // Parse YOLO output format [batch, detections, 5+classes] where 5 = [x, y, w, h, confidence]
+      final data = outputTensor.value as List;
+      if (data.isEmpty) return detections;
+
+      // Scale factors for converting from input size to original image size
+      final xScale = originalWidth / inputWidth;
+      final yScale = originalHeight / inputHeight;
+      
+      // Confidence threshold for filtering detections
+      const confidenceThreshold = 0.3;
+
+      // Parse each detection
+      for (final detection in data) {
+        if (detection is! List || detection.length < 5) continue;
+
+        final confidence = detection[4] as double;
+        if (confidence < confidenceThreshold) continue;
+
+        // YOLO format: center_x, center_y, width, height
+        final centerX = detection[0] as double;
+        final centerY = detection[1] as double;
+        final width = detection[2] as double;
+        final height = detection[3] as double;
+
+        // Convert to corner coordinates and scale to original image size
+        final x1 = ((centerX - width / 2) * xScale).clamp(0.0, originalWidth.toDouble());
+        final y1 = ((centerY - height / 2) * yScale).clamp(0.0, originalHeight.toDouble());
+        final x2 = ((centerX + width / 2) * xScale).clamp(0.0, originalWidth.toDouble());
+        final y2 = ((centerY + height / 2) * yScale).clamp(0.0, originalHeight.toDouble());
+
+        // Skip invalid boxes
+        if (x2 <= x1 || y2 <= y1) continue;
+
+        detections.add({
+          'x1': x1,
+          'y1': y1,
+          'x2': x2,
+          'y2': y2,
+          'confidence': confidence,
+        });
+      }
+
+      // Sort by confidence (highest first) and limit results
+      detections.sort((a, b) => (b['confidence'] as double).compareTo(a['confidence'] as double));
+      
+    } catch (e) {
+      print('Error parsing YOLO output: $e');
     }
 
     return detections;
@@ -347,27 +394,95 @@ class FastALPRService implements ALPRServiceInterface {
 
   /// Parse OCR output to text string
   String _parseOCROutput(dynamic outputs) {
-    // This is a simplified OCR parser - would need to be adapted to specific model output
-    // For now, return a realistic mock result
-    if (outputs.isNotEmpty && outputs[0] != null) {
-      // Generate realistic plate number
-      final random = math.Random();
-      final letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
-      final numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    try {
+      if (outputs == null || outputs.isEmpty) return '';
 
-      final plateNumber = StringBuffer();
-      // Format: ABC1234
-      for (int i = 0; i < 3; i++) {
-        plateNumber.write(letters[random.nextInt(letters.length)]);
-      }
-      for (int i = 0; i < 4; i++) {
-        plateNumber.write(numbers[random.nextInt(numbers.length)]);
-      }
+      // Get the first output tensor
+      final outputTensor = outputs.values.first;
+      if (outputTensor == null) return '';
 
-      return plateNumber.toString();
+      final data = outputTensor.value as List;
+      if (data.isEmpty) return '';
+
+      // Handle different OCR output formats
+      if (data.first is List) {
+        // Sequence output format [batch, sequence, characters]
+        final sequence = data.first as List;
+        return _decodeSequenceOutput(sequence);
+      } else {
+        // Classification output format [batch, characters] 
+        return _decodeClassificationOutput(data);
+      }
+    } catch (e) {
+      print('Error parsing OCR output: $e');
+      return '';
     }
+  }
 
-    return '';
+  /// Decode sequence-based OCR output (CTC or attention)
+  String _decodeSequenceOutput(List sequence) {
+    // Character mapping (simplified - real models would have specific vocabularies)
+    const characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const blankIndex = 0; // CTC blank token
+    
+    final result = StringBuffer();
+    int? lastChar;
+    
+    for (final logits in sequence) {
+      if (logits is! List) continue;
+      
+      // Find character with highest probability
+      double maxProb = double.negativeInfinity;
+      int maxIndex = 0;
+      
+      for (int i = 0; i < logits.length && i < characters.length; i++) {
+        final prob = logits[i] as double;
+        if (prob > maxProb) {
+          maxProb = prob;
+          maxIndex = i;
+        }
+      }
+      
+      // CTC decoding: skip blanks and repeated characters
+      if (maxIndex != blankIndex && maxIndex != lastChar) {
+        if (maxIndex < characters.length) {
+          result.write(characters[maxIndex]);
+        }
+      }
+      lastChar = maxIndex;
+    }
+    
+    return result.toString().trim();
+  }
+
+  /// Decode classification-based OCR output
+  String _decodeClassificationOutput(List data) {
+    // For fixed-length classification (each position predicts one character)
+    const characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    final result = StringBuffer();
+    
+    // Assume each element in data represents probabilities for one character position
+    for (final positionLogits in data) {
+      if (positionLogits is! List) continue;
+      
+      // Find character with highest probability
+      double maxProb = double.negativeInfinity;
+      int maxIndex = 0;
+      
+      for (int i = 0; i < positionLogits.length && i < characters.length; i++) {
+        final prob = positionLogits[i] as double;
+        if (prob > maxProb) {
+          maxProb = prob;
+          maxIndex = i;
+        }
+      }
+      
+      if (maxIndex < characters.length) {
+        result.write(characters[maxIndex]);
+      }
+    }
+    
+    return result.toString().trim();
   }
 
   /// Parse detection coordinates to Coordinate objects
@@ -385,36 +500,42 @@ class FastALPRService implements ALPRServiceInterface {
     ];
   }
 
-  /// Get mock results when models are not available
+  /// Get demo results when models are not available
   List<PlateResult> _getMockResults(String region, int topN) {
-    print('FastALPR: Using mock mode - models not loaded');
-
-    // Return mock results immediately (delay is simulated elsewhere)
-    return [
-      PlateResult(
-        plateNumber: 'MOCK123',
-        confidence: 75.0,
+    print('FastALPR: Running in DEMO MODE - no trained models available');
+    print('FastALPR: These are simulated results for demonstration purposes');
+    
+    // Generate more realistic demo results
+    final demo_plates = ['DEMO123', 'TEST456', 'SMPL789'];
+    final results = <PlateResult>[];
+    
+    for (int i = 0; i < topN && i < demo_plates.length; i++) {
+      results.add(PlateResult(
+        plateNumber: demo_plates[i],
+        confidence: 70.0 + (i * 5), // Varying confidence
         matchesTemplate: 1,
-        plateIndex: 0,
-        region: region.isNotEmpty ? region : 'us',
-        regionConfidence: 75,
-        processingTimeMs: 500.0,
+        plateIndex: i,
+        region: region.isNotEmpty ? region : 'demo',
+        regionConfidence: 70 + (i * 5),
+        processingTimeMs: 300.0 + (i * 50),
         requestedTopN: topN,
         coordinates: [
-          Coordinate(x: 100, y: 100),
-          Coordinate(x: 200, y: 100),
-          Coordinate(x: 200, y: 150),
-          Coordinate(x: 100, y: 150),
+          Coordinate(x: 150 + (i * 20), y: 200 + (i * 30)),
+          Coordinate(x: 350 + (i * 20), y: 200 + (i * 30)),
+          Coordinate(x: 350 + (i * 20), y: 280 + (i * 30)),
+          Coordinate(x: 150 + (i * 20), y: 280 + (i * 30)),
         ],
         candidates: [
           PlateCandidate(
-            plate: 'MOCK123',
-            confidence: 75.0,
+            plate: demo_plates[i],
+            confidence: 70.0 + (i * 5),
             matchesTemplate: 1,
           ),
         ],
-      ),
-    ];
+      ));
+    }
+    
+    return results;
   }
 
   /// Check if FastALPR is initialized

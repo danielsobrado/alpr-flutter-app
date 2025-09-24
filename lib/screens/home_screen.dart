@@ -6,6 +6,7 @@ import '../widgets/add_note_dialog.dart';
 import '../models/plate_result.dart';
 import 'all_notes_screen.dart';
 import 'alpr_settings_screen.dart';
+import 'analytics_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -162,6 +163,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showAnalyticsScreen() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const AnalyticsScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -184,9 +193,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 _showNotesScreen();
               } else if (value == 'settings') {
                 _showSettingsScreen();
+              } else if (value == 'analytics') {
+                _showAnalyticsScreen();
               }
             },
             itemBuilder: (context) => [
+              PopupMenuItem<String>(
+                value: 'analytics',
+                child: Row(
+                  children: [
+                    Icon(Icons.analytics, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 8),
+                    const Text('Analytics'),
+                  ],
+                ),
+              ),
               PopupMenuItem<String>(
                 value: 'notes',
                 child: Row(
@@ -225,11 +246,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                 
                 // Draggable bottom sheet
-                DraggableScrollableSheet(
-                  initialChildSize: 0.25, // Start at 25% of screen height
-                  minChildSize: 0.1, // Minimum 10% of screen height
-                  maxChildSize: 0.7, // Maximum 70% of screen height
-                  builder: (context, scrollController) {
+                NotificationListener<DraggableScrollableNotification>(
+                  onNotification: (notification) {
+                    // Handle drag notifications to ensure smooth operation
+                    return false;
+                  },
+                  child: DraggableScrollableSheet(
+                    initialChildSize: 0.25, // Start at 25% of screen height
+                    minChildSize: 0.1, // Minimum 10% of screen height
+                    maxChildSize: 0.7, // Maximum 70% of screen height
+                    snap: true, // Snap to positions for better UX
+                    snapSizes: const [0.1, 0.25, 0.7], // Snap points
+                    builder: (context, scrollController) {
                     return Container(
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surface,
@@ -246,14 +274,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       child: Column(
                         children: [
-                          // Drag handle
+                          // Drag handle (larger touch area)
                           Container(
-                            width: 40,
-                            height: 4,
-                            margin: const EdgeInsets.symmetric(vertical: 12),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(2),
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: Column(
+                              children: [
+                                Container(
+                                  width: 60,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Swipe up for more details',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           // Results content
@@ -267,6 +309,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     );
                   },
+                  ),
                 ),
               ],
             )

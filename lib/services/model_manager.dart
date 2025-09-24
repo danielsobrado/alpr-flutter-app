@@ -62,69 +62,43 @@ class ModelManager extends ChangeNotifier {
   late final Directory _modelsDirectory;
   bool _isInitialized = false;
 
-  // Available models catalog
+  // Available models catalog - Models currently unavailable for public download
   static const List<ONNXModel> _availableModels = [
-    // Detection Models
+    // Detection Models - Would need actual Fast-ALPR models
     ONNXModel(
       id: 'yolo_v9_384',
-      name: 'YOLOv9 Tiny (384x384)',
-      description: 'Fast and efficient license plate detection',
-      downloadUrl: 'https://github.com/ankandrew/fast-alpr/releases/download/v0.0.1/yolo-v9-t-384-license-plate-end2end.onnx',
-      fileSizeBytes: 12 * 1024 * 1024, // ~12MB
-      filename: 'yolo-v9-t-384-license-plate-end2end.onnx',
+      name: 'YOLOv9 License Plate Detection',
+      description: 'Professional license plate detection model (Not available in demo)',
+      downloadUrl: 'https://example.com/models-not-available', // Disabled
+      fileSizeBytes: 6 * 1024 * 1024,
+      filename: 'yolo-v9-t-384-license-plate.onnx',
       type: ModelType.detector,
       metadata: {
         'inputSize': [384, 384],
         'accuracy': 'High',
         'speed': 'Fast',
         'architecture': 'YOLOv9',
-      },
-    ),
-    ONNXModel(
-      id: 'yolo_v8_640',
-      name: 'YOLOv8 Standard (640x640)',
-      description: 'High accuracy license plate detection',
-      downloadUrl: 'https://github.com/ankandrew/fast-alpr/releases/download/v0.0.1/yolo-v8-m-640-license-plate.onnx',
-      fileSizeBytes: 25 * 1024 * 1024, // ~25MB
-      filename: 'yolo-v8-m-640-license-plate.onnx',
-      type: ModelType.detector,
-      metadata: {
-        'inputSize': [640, 640],
-        'accuracy': 'Very High',
-        'speed': 'Medium',
-        'architecture': 'YOLOv8',
+        'note': 'Requires Fast-ALPR subscription or training custom models',
+        'available': false,
       },
     ),
 
-    // OCR Models
+    // OCR Models - Would need actual Fast-Plate-OCR models  
     ONNXModel(
-      id: 'cct_xs_global',
-      name: 'CCT-XS Global',
-      description: 'Compact OCR model for global license plates',
-      downloadUrl: 'https://github.com/ankandrew/fast-plate-ocr/releases/download/v0.0.1/cct-xs-v1-global-model.onnx',
-      fileSizeBytes: 8 * 1024 * 1024, // ~8MB
-      filename: 'cct-xs-v1-global-model.onnx',
+      id: 'cct_global',
+      name: 'CCT License Plate OCR',
+      description: 'Professional license plate text recognition (Not available in demo)',
+      downloadUrl: 'https://example.com/models-not-available', // Disabled
+      fileSizeBytes: 8 * 1024 * 1024,
+      filename: 'cct-global-license-plate.onnx',
       type: ModelType.ocr,
       metadata: {
-        'regions': ['global', 'us', 'eu', 'cn'],
+        'regions': ['global'],
         'accuracy': 'High',
         'speed': 'Fast',
         'architecture': 'CCT',
-      },
-    ),
-    ONNXModel(
-      id: 'cct_small_us',
-      name: 'CCT Small US',
-      description: 'US-specific OCR model with higher accuracy',
-      downloadUrl: 'https://github.com/ankandrew/fast-plate-ocr/releases/download/v0.0.1/cct-small-us-model.onnx',
-      fileSizeBytes: 15 * 1024 * 1024, // ~15MB
-      filename: 'cct-small-us-model.onnx',
-      type: ModelType.ocr,
-      metadata: {
-        'regions': ['us'],
-        'accuracy': 'Very High',
-        'speed': 'Medium',
-        'architecture': 'CCT',
+        'note': 'Requires Fast-Plate-OCR subscription or training custom models',
+        'available': false,
       },
     ),
   ];

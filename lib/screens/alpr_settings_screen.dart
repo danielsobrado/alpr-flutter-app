@@ -151,7 +151,7 @@ class _ALPRSettingsScreenState extends State<ALPRSettingsScreen> {
   }
 
   Widget _buildComparisonTable() {
-    final allCapabilities = ALPRConfig.getProviderCapabilities(ALPRProvider.openalpr).keys.toList();
+    final allCapabilities = ALPRConfig.getProviderCapabilities(ALPRProvider.fastalpr).keys.toList();
 
     return Table(
       border: TableBorder.all(color: Colors.grey.shade300),
@@ -198,10 +198,10 @@ class _ALPRSettingsScreenState extends State<ALPRSettingsScreen> {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Icon(
-                ALPRConfig.getProviderCapabilities(ALPRProvider.openalpr)[capability] == true
+                ALPRConfig.getProviderCapabilities(ALPRProvider.fastalpr)[capability] == true
                     ? Icons.check
                     : Icons.close,
-                color: ALPRConfig.getProviderCapabilities(ALPRProvider.openalpr)[capability] == true
+                color: ALPRConfig.getProviderCapabilities(ALPRProvider.fastalpr)[capability] == true
                     ? Colors.green
                     : Colors.red,
                 size: 16,

@@ -1,6 +1,5 @@
 import '../core/alpr_config.dart';
 import 'alpr_service_interface.dart';
-import 'openalpr_service.dart';
 import 'fastalpr_service.dart';
 
 /// Factory for creating ALPR service instances
@@ -22,9 +21,6 @@ class ALPRServiceFactory {
     _currentService?.dispose();
 
     switch (provider) {
-      case ALPRProvider.openalpr:
-        _currentService = OpenALPRService();
-        break;
       case ALPRProvider.fastalpr:
         _currentService = FastALPRService();
         break;

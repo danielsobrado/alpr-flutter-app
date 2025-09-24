@@ -32,7 +32,10 @@ dependencies:
   
   # HTTP requests (for potential future features)
   http: ^1.1.0
-  
+
+  # ONNX Runtime for fast-alpr
+  onnxruntime: ^1.4.1
+
   # State management
   provider: ^6.1.1
   
@@ -61,3 +64,5 @@ flutter:
     # OpenALPR configuration files
     - assets/runtime_data/
     - assets/runtime_data/ocr/tessdata/
+    # FastALPR ONNX models
+    - assets/models/

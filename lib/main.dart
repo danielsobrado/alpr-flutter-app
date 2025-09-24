@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/logger.dart';
 import 'core/constants.dart';
-import 'screens/home_screen.dart';
+import 'screens/initial_provider_selection_screen.dart';
 
 void main() async {
   // Ensure proper initialization
@@ -61,7 +61,7 @@ class ALPRFlutterApp extends StatelessWidget {
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
       themeMode: ThemeMode.system,
-      home: const HomeScreen(),
+      home: const InitialProviderSelectionScreen(),
     );
   }
 

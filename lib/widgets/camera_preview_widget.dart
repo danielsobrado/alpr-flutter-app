@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import '../services/openalpr_service.dart';
-import '../services/termux_alpr_service.dart';
-import '../services/chaquopy_alpr_service.dart';
+import '../services/alpr_service_factory.dart';
+import '../services/alpr_service_interface.dart';
+import '../core/alpr_config.dart';
 import '../models/plate_result.dart';
 
 class CameraPreviewWidget extends StatefulWidget {
@@ -29,17 +29,13 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
   bool _isInitialized = false;
   bool _isProcessing = false;
   List<PlateResult> _detectedPlates = [];
-  final OpenALPRService _openAlprService = OpenALPRService();
-  final TermuxAlprService _termuxAlprService = TermuxAlprService();
-  final ChaquopyAlprService _chaquopyAlprService = ChaquopyAlprService();
-  bool _useTermuxAlpr = false;
-  bool _useChaquopyAlpr = false;
+  ALPRServiceInterface? _alprService;
 
   @override
   void initState() {
     super.initState();
     _initializeCamera();
-    _initializeOpenALPR();
+    _initializeALPR();
   }
 
   Future<void> _initializeCamera() async {
@@ -65,48 +61,22 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
     }
   }
 
-  Future<void> _initializeOpenALPR() async {
-    // First try Chaquopy ALPR (best modern solution)
+  Future<void> _initializeALPR() async {
     try {
-      final chaquopyAvailable = await _chaquopyAlprService.isChaquopyAvailable();
-      if (chaquopyAvailable) {
-        await _chaquopyAlprService.initialize();
-        _useChaquopyAlpr = true;
-        if (widget.onStatusUpdate != null) {
-          widget.onStatusUpdate!('🔥 Chaquopy ALPR ready! Advanced local processing on your Samsung Galaxy S25.');
-        }
-        print('Chaquopy ALPR: Successfully initialized');
-        return;
-      }
-    } catch (e) {
-      print('Chaquopy ALPR initialization failed: $e');
-    }
+      _alprService = ALPRServiceFactory.getCurrentService();
 
-    // Second try Termux ALPR (alternative modern solution)
-    try {
-      final termuxAvailable = await _termuxAlprService.isTermuxAvailable();
-      if (termuxAvailable) {
-        await _termuxAlprService.initialize();
-        _useTermuxAlpr = true;
-        widget.onError('🚀 Termux ALPR initialized! Local processing ready on your Samsung Galaxy S25.');
-        print('Termux ALPR: Successfully initialized');
-        return;
+      if (!_alprService!.isInitialized) {
+        await _alprService!.initialize();
       }
-    } catch (e) {
-      print('Termux ALPR initialization failed: $e');
-    }
 
-    // Fallback to original OpenALPR (will fail on ARM64)
-    try {
-      await _openAlprService.initialize();
-      print('OpenALPR initialized successfully');
-    } catch (e) {
-      print('OpenALPR initialization failed: $e');
-      if (e.toString().contains('NATIVE_LIB_ERROR')) {
-        widget.onError('📱 Using camera-only mode. Chaquopy ALPR integrated for next update!');
-      } else {
-        widget.onError('Failed to initialize plate recognition: $e');
+      final providerName = ALPRConfig.getProviderDisplayName(ALPRConfig.currentProvider);
+      print('ALPR initialized successfully with $providerName');
+      if (widget.onStatusUpdate != null) {
+        widget.onStatusUpdate!('🚀 $providerName ready for license plate recognition!');
       }
+    } catch (e) {
+      print('ALPR initialization failed: $e');
+      widget.onError('Failed to initialize plate recognition: $e');
     }
   }
 
@@ -124,27 +94,28 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
       
       // Notify that image was captured
       widget.onImageCaptured?.call(image.path);
-      
-      // Try ALPR processing based on available service (priority order)
-      if (_useChaquopyAlpr && _chaquopyAlprService.isInitialized) {
+
+      if (_alprService != null && _alprService!.isInitialized) {
         try {
+          final providerName = ALPRConfig.getProviderDisplayName(ALPRConfig.currentProvider);
           if (widget.onStatusUpdate != null) {
-            widget.onStatusUpdate!('🔥 Processing with Chaquopy ALPR...');
+            widget.onStatusUpdate!('🔍 Processing with $providerName...');
           }
-          final plates = await _chaquopyAlprService.recognizePlatesFromFile(
+
+          final plates = await _alprService!.recognizePlatesFromFile(
             imagePath: image.path,
             country: 'us',
           );
-          
+
           if (mounted) {
             setState(() {
               _detectedPlates = plates;
             });
             widget.onPlatesDetected(plates);
-            
+
             if (plates.isNotEmpty) {
               if (widget.onStatusUpdate != null) {
-                widget.onStatusUpdate!('✅ Chaquopy ALPR detected ${plates.length} plate(s)!');
+                widget.onStatusUpdate!('✅ $providerName detected ${plates.length} plate(s)!');
               }
             } else {
               if (widget.onStatusUpdate != null) {
@@ -153,74 +124,7 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
             }
           }
         } catch (e) {
-          widget.onError('Error in Chaquopy ALPR: $e');
-          if (mounted) {
-            setState(() {
-              _detectedPlates = [];
-            });
-            widget.onPlatesDetected([]);
-          }
-        }
-      } else if (_useTermuxAlpr && _termuxAlprService.isInitialized) {
-        try {
-          if (widget.onStatusUpdate != null) {
-            widget.onStatusUpdate!('🔍 Processing with Termux ALPR...');
-          }
-          final plates = await _termuxAlprService.recognizePlatesFromFile(
-            imagePath: image.path,
-            country: 'us',
-          );
-          
-          if (mounted) {
-            setState(() {
-              _detectedPlates = plates;
-            });
-            widget.onPlatesDetected(plates);
-            
-            if (plates.isNotEmpty) {
-              if (widget.onStatusUpdate != null) {
-                widget.onStatusUpdate!('✅ Termux ALPR detected ${plates.length} plate(s)!');
-              }
-            } else {
-              if (widget.onStatusUpdate != null) {
-                widget.onStatusUpdate!('📸 Photo processed - no plates detected');
-              }
-            }
-          }
-        } catch (e) {
-          widget.onError('Error in Termux ALPR: $e');
-          if (mounted) {
-            setState(() {
-              _detectedPlates = [];
-            });
-            widget.onPlatesDetected([]);
-          }
-        }
-      } else if (_openAlprService.isInitialized) {
-        try {
-          final plates = await _openAlprService.recognizePlatesFromFile(
-            imagePath: image.path,
-            country: 'us',
-          );
-          
-          if (mounted) {
-            setState(() {
-              _detectedPlates = plates;
-            });
-            widget.onPlatesDetected(plates);
-            
-            if (plates.isNotEmpty) {
-              if (widget.onStatusUpdate != null) {
-                widget.onStatusUpdate!('✅ Detected ${plates.length} plate(s)');
-              }
-            } else {
-              if (widget.onStatusUpdate != null) {
-                widget.onStatusUpdate!('📸 Photo captured - no plates detected');
-              }
-            }
-          }
-        } catch (e) {
-          widget.onError('Error analyzing photo: $e');
+          widget.onError('Error in ALPR processing: $e');
           if (mounted) {
             setState(() {
               _detectedPlates = [];
@@ -231,7 +135,7 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
       } else {
         // No ALPR available - camera only mode
         if (widget.onStatusUpdate != null) {
-          widget.onStatusUpdate!('📸 Photo captured! Chaquopy ALPR ready for processing in this build.');
+          widget.onStatusUpdate!('📸 Photo captured! ALPR service not available.');
         }
         if (mounted) {
           setState(() {
@@ -254,9 +158,7 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
   @override
   void dispose() {
     _controller?.dispose();
-    _openAlprService.dispose();
-    _termuxAlprService.dispose();
-    _chaquopyAlprService.dispose();
+    // Note: Don't dispose the ALPR service here as it's managed by the factory
     super.dispose();
   }
 

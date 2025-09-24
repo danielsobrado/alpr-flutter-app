@@ -4,9 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import '../models/plate_result.dart';
+import 'alpr_service_interface.dart';
 
 /// Service for license plate recognition using OpenALPR
-class OpenALPRService {
+class OpenALPRService implements ALPRServiceInterface {
   static const MethodChannel _channel = MethodChannel('openalpr_flutter');
   
   static const String _configFileName = 'openalpr.conf';
@@ -195,9 +196,30 @@ class OpenALPRService {
   }
 
   /// Check if OpenALPR is initialized
+  @override
   bool get isInitialized => _isInitialized;
 
+  /// Get service-specific configuration options
+  @override
+  Map<String, dynamic> getConfiguration() {
+    return {
+      'provider': 'openalpr',
+      'config_path': _configPath,
+      'runtime_data_path': _runtimeDataPath,
+      'supports_regions': true,
+      'supports_country_codes': true,
+    };
+  }
+
+  /// Update service configuration
+  @override
+  Future<void> updateConfiguration(Map<String, dynamic> config) async {
+    // OpenALPR configuration is handled through initialization
+    // Could be extended to support dynamic configuration updates
+  }
+
   /// Dispose and cleanup resources
+  @override
   void dispose() {
     _isInitialized = false;
     _configPath = null;

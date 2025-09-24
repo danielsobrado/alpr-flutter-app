@@ -4,6 +4,7 @@ import '../widgets/camera_preview_widget.dart';
 import '../widgets/add_note_dialog.dart';
 import '../models/plate_result.dart';
 import 'all_notes_screen.dart';
+import 'alpr_settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -115,6 +116,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showSettingsScreen() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const ALPRSettingsScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -135,6 +144,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onSelected: (value) {
               if (value == 'notes') {
                 _showNotesScreen();
+              } else if (value == 'settings') {
+                _showSettingsScreen();
               }
             },
             itemBuilder: (context) => [
@@ -145,6 +156,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icon(Icons.note, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 8),
                     const Text('My Notes'),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'settings',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 8),
+                    const Text('ALPR Settings'),
                   ],
                 ),
               ),

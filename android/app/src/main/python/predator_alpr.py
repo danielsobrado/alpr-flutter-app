@@ -155,52 +155,44 @@ class ChaquopyPredatorALPR:
         
         return text_regions[:3]  # Return top 3 candidates only
         
-    def extract_text_basic_ocr(self, image: np.ndarray, bbox: Tuple[int, int, int, int]) -> str:
+    def extract_text_real_ocr(self, image: np.ndarray, bbox: Tuple[int, int, int, int]) -> str:
         """
-        Improved text extraction with better OCR simulation
+        Real OCR text extraction using Tesseract
+        """
+        try:
+            from real_alpr import RealALPR
+            
+            x, y, w, h = bbox
+            roi = image[y:y+h, x:x+w]
+            
+            # Use the real ALPR implementation for text extraction
+            real_alpr = RealALPR()
+            plate_text = real_alpr.extract_plate_text(roi)
+            
+            if plate_text and len(plate_text) >= 4:
+                self.log(f"Real OCR extracted: '{plate_text}' from region {x},{y},{w},{h}")
+                return plate_text.upper()
+            else:
+                self.log(f"Real OCR failed to extract text from region {x},{y},{w},{h}")
+                return ""
+                
+        except ImportError:
+            self.log("Real ALPR module not available, falling back to basic processing")
+            return self.extract_text_fallback(image, bbox)
+        except Exception as e:
+            self.log(f"Real OCR error: {str(e)}, falling back to basic processing")
+            return self.extract_text_fallback(image, bbox)
+    
+    def extract_text_fallback(self, image: np.ndarray, bbox: Tuple[int, int, int, int]) -> str:
+        """
+        Fallback text extraction when real OCR is not available
         """
         x, y, w, h = bbox
-        roi = image[y:y+h, x:x+w]
         
-        # Preprocess ROI for better OCR
-        if len(roi.shape) == 3:
-            roi_gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-        else:
-            roi_gray = roi
-            
-        # Enhanced preprocessing
-        # Gaussian blur to reduce noise
-        roi_blur = cv2.GaussianBlur(roi_gray, (3, 3), 0)
-        
-        # Adaptive thresholding for varying lighting
-        roi_thresh = cv2.adaptiveThreshold(
-            roi_blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-        )
-        
-        # Morphological operations to clean up
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-        roi_clean = cv2.morphologyEx(roi_thresh, cv2.MORPH_CLOSE, kernel)
-        
-        # Create more realistic license plate patterns based on region analysis
-        realistic_plates = [
-            "ABC1234", "DEF5678", "GHI9012", "JKL3456", "MNO7890",
-            "PQR2468", "STU1357", "VWX8024", "YZA4680", "BCD9753",
-            "EFG1470", "HIJ2581", "KLM3692", "NOP4703", "QRS5814",
-            "TUV6925", "WXY7036", "ZAB8147", "CDE9258", "FGH0369"
-        ]
-        
-        # Use region characteristics to select a plate
-        # This creates more consistent results for the same region
-        seed = (x * 31 + y * 17 + w * 13 + h * 7) % len(realistic_plates)
-        base_plate = realistic_plates[seed]
-        
-        # Add some variation based on area size
-        if bbox[2] * bbox[3] > 5000:  # Larger regions get different variations
-            return base_plate
-        else:
-            # Smaller regions might be partial reads or different formats
-            shorter_plates = ["AB123", "CD456", "EF789", "GH012", "IJ345"]
-            return shorter_plates[seed % len(shorter_plates)]
+        # If we can't do real OCR, we should not return fake data
+        # Instead, return empty string to indicate no detection
+        self.log(f"No OCR available for region {x},{y},{w},{h} - returning empty")
+        return ""
         
     def process_image_from_path(self, image_path: str) -> Dict:
         """Process image file for license plate recognition"""
@@ -244,8 +236,8 @@ class ChaquopyPredatorALPR:
                 bbox = region['bbox']
                 x, y, w, h = bbox
                 
-                # Extract text from region
-                plate_text = self.extract_text_basic_ocr(image, bbox)
+                # Extract text from region using real OCR
+                plate_text = self.extract_text_real_ocr(image, bbox)
                 
                 # Calculate confidence with aspect ratio
                 confidence = self.calculate_confidence(plate_text, region['area'], image_area, region['aspect_ratio'])

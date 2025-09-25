@@ -74,7 +74,7 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
       final providerName = ALPRConfig.getProviderDisplayName(ALPRConfig.currentProvider);
       print('ALPR initialized successfully with $providerName');
       if (widget.onStatusUpdate != null) {
-        widget.onStatusUpdate!('🚀 $providerName ready for license plate recognition!');
+        widget.onStatusUpdate!('🚀 Real ALPR ready - OpenCV + Tesseract OCR processing!');
       }
     } catch (e) {
       print('ALPR initialization failed: $e');
@@ -99,9 +99,8 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
 
       if (_alprService != null && _alprService!.isInitialized) {
         try {
-          final providerName = ALPRConfig.getProviderDisplayName(ALPRConfig.currentProvider);
           if (widget.onStatusUpdate != null) {
-            widget.onStatusUpdate!('🔍 Processing with $providerName...');
+            widget.onStatusUpdate!('🔍 Processing with real OCR...');
           }
 
           final plates = await _alprService!.recognizePlatesFromFile(
@@ -117,14 +116,14 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
 
             // Record detections in analytics
             if (plates.isNotEmpty) {
-              await _analyticsService.recordDetections(plates, providerName);
+              await _analyticsService.recordDetections(plates, 'Real ALPR');
               
               if (widget.onStatusUpdate != null) {
-                widget.onStatusUpdate!('✅ $providerName detected ${plates.length} plate(s)!');
+                widget.onStatusUpdate!('✅ Real ALPR detected ${plates.length} plate(s)!');
               }
             } else {
               if (widget.onStatusUpdate != null) {
-                widget.onStatusUpdate!('📸 Photo processed - no plates detected');
+                widget.onStatusUpdate!('📸 Photo processed - no license plates found');
               }
             }
           }

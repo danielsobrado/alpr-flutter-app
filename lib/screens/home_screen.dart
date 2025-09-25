@@ -7,6 +7,7 @@ import '../models/plate_result.dart';
 import 'all_notes_screen.dart';
 import 'alpr_settings_screen.dart';
 import 'analytics_screen.dart';
+import 'engine_selector_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -171,6 +172,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showEngineSelector() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const EngineSelectorScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -195,6 +204,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 _showSettingsScreen();
               } else if (value == 'analytics') {
                 _showAnalyticsScreen();
+              } else if (value == 'engines') {
+                _showEngineSelector();
               }
             },
             itemBuilder: (context) => [
@@ -205,6 +216,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icon(Icons.analytics, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 8),
                     const Text('Analytics'),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'engines',
+                child: Row(
+                  children: [
+                    Icon(Icons.speed, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 8),
+                    const Text('ALPR Engines'),
                   ],
                 ),
               ),
@@ -727,7 +748,7 @@ extension _HomeScreenStateExtension on _HomeScreenState {
             Text('• Click plates to highlight'),
             Text('• High-accuracy detection'),
             SizedBox(height: 16),
-            Text('Take a photo to analyze license plates, then click detected plates to highlight them.'),
+            Text('Take a photo to analyze real license plates using OpenCV + Tesseract OCR, then click detected plates to highlight them.'),
           ],
         ),
         actions: [

@@ -56,6 +56,9 @@ chaquopy {
             install("opencv-python")
             install("numpy") 
             install("Pillow")
+            install("pytesseract")
+            // Note: fast-plate-ocr not available in Chaquopy repository
+            // Will gracefully handle missing dependency
         }
     }
 }

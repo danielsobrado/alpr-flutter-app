@@ -150,11 +150,11 @@ class FastALPRService implements ALPRServiceInterface {
       throw Exception('FastALPR not initialized. Call initialize() first.');
     }
 
-    // If no models loaded, use mock mode with warning
+    // If no models loaded, return empty results - no fake data
     if (!hasModelsLoaded) {
-      print('FastALPR Warning: No ONNX models loaded - using demo results');
-      print('FastALPR Warning: To get real results, download proper license plate detection and OCR models');
-      return _getMockResults(region, topN);
+      print('FastALPR Warning: No ONNX models loaded - cannot perform detection');
+      print('FastALPR Warning: Real ALPR processing requires trained models');
+      return []; // Return empty list instead of mock data
     }
 
     try {
@@ -197,8 +197,8 @@ class FastALPRService implements ALPRServiceInterface {
       return results;
     } catch (e) {
       print('Error recognizing plates from bytes: $e');
-      // Fallback to mock results on error
-      return _getMockResults(region, topN);
+      // Return empty results on error - no fake data
+      return [];
     }
   }
 
@@ -500,43 +500,6 @@ class FastALPRService implements ALPRServiceInterface {
     ];
   }
 
-  /// Get demo results when models are not available
-  List<PlateResult> _getMockResults(String region, int topN) {
-    print('FastALPR: Running in DEMO MODE - no trained models available');
-    print('FastALPR: These are simulated results for demonstration purposes');
-    
-    // Generate more realistic demo results
-    final demo_plates = ['DEMO123', 'TEST456', 'SMPL789'];
-    final results = <PlateResult>[];
-    
-    for (int i = 0; i < topN && i < demo_plates.length; i++) {
-      results.add(PlateResult(
-        plateNumber: demo_plates[i],
-        confidence: 70.0 + (i * 5), // Varying confidence
-        matchesTemplate: 1,
-        plateIndex: i,
-        region: region.isNotEmpty ? region : 'demo',
-        regionConfidence: 70 + (i * 5),
-        processingTimeMs: 300.0 + (i * 50),
-        requestedTopN: topN,
-        coordinates: [
-          Coordinate(x: 150 + (i * 20), y: 200 + (i * 30)),
-          Coordinate(x: 350 + (i * 20), y: 200 + (i * 30)),
-          Coordinate(x: 350 + (i * 20), y: 280 + (i * 30)),
-          Coordinate(x: 150 + (i * 20), y: 280 + (i * 30)),
-        ],
-        candidates: [
-          PlateCandidate(
-            plate: demo_plates[i],
-            confidence: 70.0 + (i * 5),
-            matchesTemplate: 1,
-          ),
-        ],
-      ));
-    }
-    
-    return results;
-  }
 
   /// Check if FastALPR is initialized
   @override
